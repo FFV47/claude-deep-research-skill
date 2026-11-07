@@ -14,23 +14,33 @@
 
 ## Generation Steps
 
-### Step 1: Read McKinsey Template
-Load template from: `./templates/mckinsey_report_template.html`
+### Step 1: Template
+The script loads `./templates/mckinsey_report_template.html` by default (`--template [path]` overrides it). No need to read it into context.
 
 ### Step 2: Extract Key Metrics
 Extract 3-4 key quantitative findings for dashboard display at top.
 
-### Step 3: Convert MD to HTML
+### Step 3: Build the HTML Report (one call)
 
-Use Python script:
 ```bash
 cd ~/.claude/skills/deep-research
-python scripts/md_to_html.py [markdown_report_path]
+python scripts/md_to_html.py [markdown_report_path] --out [html_path] \
+  --title "[Report title]" --source-count [N] \
+  --metrics '{"[Label 1]": "[Value 1]", "[Label 2]": "[Value 2]"}'
 ```
 
-**Script outputs two parts:**
-- **Part A ({{CONTENT}}):** All sections except Bibliography
-- **Part B ({{BIBLIOGRAPHY}}):** Bibliography section only
+The script converts the markdown, fills every template placeholder, writes the file and prints its path. Do not paste the HTML into context or write it by hand.
+
+| Placeholder | Filled from |
+|-------------|-------------|
+| {{TITLE}} | `--title` |
+| {{DATE}} | `--date` (default: today, YYYY-MM-DD) |
+| {{SOURCE_COUNT}} | `--source-count` |
+| {{METRICS_DASHBOARD}} | `--metrics` (JSON object from step 2) |
+| {{CONTENT}} | All sections except Bibliography (Appendix included) |
+| {{BIBLIOGRAPHY}} | Bibliography section, one entry per `[N]` line |
+
+Without `--out`, the script prints both HTML parts in full to stdout (for inspection only).
 
 **Script handles all conversion:**
 - Headers: `##` -> `<div class="section"><h2 class="section-title">`
@@ -43,7 +53,7 @@ python scripts/md_to_html.py [markdown_report_path]
 
 ### Step 4: Add Citation Tooltips (Optional)
 
-Attribution Gradients - wrap each [N] citation:
+Attribution Gradients - in the HTML file written by step 3, wrap each [N] citation:
 ```html
 <span class="citation">[N]
   <span class="citation-tooltip">
@@ -58,18 +68,7 @@ Attribution Gradients - wrap each [N] citation:
 ```
 NOTE: This step is optional for speed. Basic [N] citations are sufficient.
 
-### Step 5: Replace Template Placeholders
-
-| Placeholder | Content |
-|-------------|---------|
-| {{TITLE}} | Report title (from first ## heading) |
-| {{DATE}} | Generation date (YYYY-MM-DD) |
-| {{SOURCE_COUNT}} | Number of unique sources |
-| {{METRICS_DASHBOARD}} | Metrics HTML from step 2 |
-| {{CONTENT}} | HTML from Part A |
-| {{BIBLIOGRAPHY}} | HTML from Part B |
-
-### Step 6: Verify HTML
+### Step 5: Verify HTML
 
 ```bash
 python scripts/verify_html.py --html [html_path] --md [md_path]

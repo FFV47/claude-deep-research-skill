@@ -4,7 +4,7 @@ Source Credibility Evaluator
 Assesses source quality, credibility, and potential biases
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
@@ -54,7 +54,7 @@ class SourceEvaluator:
 
         # Reputable News (Fact-check verified)
         'reuters.com', 'apnews.com', 'bbc.com', 'economist.com',
-        'nature.com/news', 'scientificamerican.com'
+        'scientificamerican.com'
     }
 
     MODERATE_AUTHORITY_DOMAINS = {
@@ -294,33 +294,48 @@ class SourceEvaluator:
             return "verify"
 
 
-# Example usage
-if __name__ == '__main__':
+SOURCE_KEYS = ('url', 'title', 'publication_date', 'author', 'content')
+
+
+def main():
+    """CLI: score one source (JSON object) or several (JSON array), print JSON."""
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(
+        description='Score source credibility (0-100)',
+        epilog="""
+Examples:
+  python source_evaluator.py --json '{"url": "https://www.scielo.br/j/x", "title": "Artigo", "publication_date": "2026-10-01"}'
+  python source_evaluator.py --json '[{"url": "https://a.com", "title": "A"}, {"url": "https://b.org", "title": "B", "author": "Dr. Silva"}]'
+
+Keys: url and title (required); publication_date (ISO 8601), author, content (optional).
+An object in prints an object; an array in prints an array in the same order.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('--json', required=True,
+                        help='JSON object, or array of objects, describing the sources')
+    args = parser.parse_args()
+
+    try:
+        data = json.loads(args.json)
+    except json.JSONDecodeError as e:
+        parser.error(f'--json is not valid JSON: {e}')
+    sources = data if isinstance(data, list) else [data]
+
     evaluator = SourceEvaluator()
+    results = []
+    for i, src in enumerate(sources):
+        if not isinstance(src, dict) or not src.get('url') or not src.get('title'):
+            parser.error(f'source {i}: each source needs "url" and "title"')
+        unknown = set(src) - set(SOURCE_KEYS)
+        if unknown:
+            parser.error(f'source {i}: unknown keys {sorted(unknown)}; allowed: {", ".join(SOURCE_KEYS)}')
+        results.append({'url': src['url'], **asdict(evaluator.evaluate_source(**src))})
 
-    # Test sources
-    test_sources = [
-        {
-            'url': 'https://www.nature.com/articles/s41586-2025-12345',
-            'title': 'Breakthrough in Quantum Computing',
-            'publication_date': '2025-10-15'
-        },
-        {
-            'url': 'https://someblog.wordpress.com/shocking-discovery',
-            'title': 'SHOCKING! You Won\'t Believe This Discovery!',
-            'publication_date': '2020-01-01'
-        },
-        {
-            'url': 'https://docs.python.org/3/library/asyncio.html',
-            'title': 'asyncio — Asynchronous I/O',
-            'publication_date': '2025-11-01'
-        }
-    ]
+    print(json.dumps(results if isinstance(data, list) else results[0], indent=2, ensure_ascii=False))
 
-    for source in test_sources:
-        score = evaluator.evaluate_source(**source)
-        print(f"\nSource: {source['title']}")
-        print(f"URL: {source['url']}")
-        print(f"Overall Score: {score.overall_score}/100")
-        print(f"Recommendation: {score.recommendation}")
-        print(f"Factors: {score.factors}")
+
+if __name__ == '__main__':
+    main()

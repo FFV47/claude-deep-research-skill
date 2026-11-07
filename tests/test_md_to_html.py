@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
-"""Tests for md_to_html.py conversion."""
+"""Tests for md_to_html.py conversion and CLI."""
 
 import importlib.util
 import os
+import subprocess
+import sys
+import tempfile
 import unittest
 
 SCRIPT = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'md_to_html.py')
+FIXTURE = os.path.join(os.path.dirname(__file__), 'fixtures', 'valid_report.md')
 
 _spec = importlib.util.spec_from_file_location('md_to_html', SCRIPT)
 md_to_html = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(md_to_html)
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True)
 
 
 SAMPLE = """## Findings
@@ -52,6 +60,45 @@ class TestConversion(unittest.TestCase):
 
     def test_consecutive_metadata_lines_are_split(self):
         self.assertIn('<br><strong>Mode:</strong>', self.content)
+
+
+class TestCli(unittest.TestCase):
+    def test_help_works(self):
+        result = run_cli('--help')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('--out', result.stdout)
+
+    def test_stdout_mode_prints_full_content(self):
+        result = run_cli(FIXTURE)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with open(FIXTURE) as f:
+            content, bib = md_to_html.convert_markdown_to_html(f.read())
+        self.assertGreater(len(content), 1000)  # the old CLI cut output at 1000 chars
+        self.assertIn(content, result.stdout)
+        self.assertIn(bib, result.stdout)
+
+    def test_out_writes_filled_template(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, 'report.html')
+            result = run_cli(FIXTURE, '--out', out, '--title', 'Relatório',
+                             '--source-count', '7', '--metrics', '{"Fontes": "7"}')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), out)
+            with open(out) as f:
+                html = f.read()
+        self.assertNotIn('{{', html)
+        self.assertIn('Relatório', html)
+        self.assertIn('metric-label">Fontes<', html)
+
+    def test_out_requires_title_and_source_count(self):
+        with tempfile.TemporaryDirectory() as d:
+            result = run_cli(FIXTURE, '--out', os.path.join(d, 'r.html'))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('--title', result.stderr)
+
+    def test_missing_file_fails(self):
+        result = run_cli('/nonexistent/report.md')
+        self.assertNotEqual(result.returncode, 0)
 
 
 if __name__ == '__main__':

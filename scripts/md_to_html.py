@@ -458,25 +458,57 @@ def build_report(
 
 
 def main():
-    """Test the converter with a sample markdown file"""
-    import sys
+    """CLI: print converted HTML parts, or write the filled report template."""
+    import argparse
+    import json
+    from datetime import date
 
-    if len(sys.argv) < 2:
-        print("Usage: python md_to_html.py <markdown_file>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='Convert a markdown research report to HTML',
+        epilog="""
+Examples:
+  python md_to_html.py report.md
+  python md_to_html.py report.md --out report.html --title "Report Title" --source-count 18 \\
+      --metrics '{"Market size": "$4.2B", "CAGR": "12%"}'
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('markdown', type=Path, help='Path to the markdown report')
+    parser.add_argument('--out', type=Path,
+                        help='Write the complete HTML report (template filled) to this path')
+    parser.add_argument('--title', help='Report title (required with --out)')
+    parser.add_argument('--date', default=date.today().isoformat(),
+                        help='Report date, YYYY-MM-DD (default: today)')
+    parser.add_argument('--source-count', help='Number of unique sources (required with --out)')
+    parser.add_argument('--metrics', default='{}',
+                        help='JSON object {label: value} for the metrics dashboard')
+    parser.add_argument('--template', type=Path, help='HTML template (default: McKinsey template)')
+    args = parser.parse_args()
 
-    md_file = Path(sys.argv[1])
-    if not md_file.exists():
-        print(f"Error: File {md_file} not found")
-        sys.exit(1)
+    if not args.markdown.exists():
+        parser.error(f'file not found: {args.markdown}')
 
-    markdown_text = md_file.read_text()
-    content_html, bib_html = convert_markdown_to_html(markdown_text)
+    if args.out is None:
+        content_html, bib_html = convert_markdown_to_html(args.markdown.read_text())
+        print("=== CONTENT HTML ===")
+        print(content_html)
+        print("\n=== BIBLIOGRAPHY HTML ===")
+        print(bib_html)
+        return
 
-    print("=== CONTENT HTML ===")
-    print(content_html[:1000])
-    print("\n=== BIBLIOGRAPHY HTML ===")
-    print(bib_html[:500])
+    if not args.title or args.source_count is None:
+        parser.error('--out requires --title and --source-count')
+    try:
+        metrics = json.loads(args.metrics)
+    except json.JSONDecodeError as e:
+        parser.error(f'--metrics is not valid JSON: {e}')
+    if not isinstance(metrics, dict):
+        parser.error('--metrics must be a JSON object')
+
+    out = build_report(args.markdown, args.out, title=args.title, date=args.date,
+                       source_count=args.source_count, metrics=metrics,
+                       template_path=args.template)
+    print(out)
 
 
 if __name__ == "__main__":

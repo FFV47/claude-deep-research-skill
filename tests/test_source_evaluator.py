@@ -2,7 +2,10 @@
 """Tests for source_evaluator.py domain scoring, including Brazilian sources."""
 
 import importlib.util
+import json
 import os
+import subprocess
+import sys
 import unittest
 from datetime import datetime, timedelta, timezone
 
@@ -81,6 +84,12 @@ class TestDomainMatching(unittest.TestCase):
     def test_unknown_domain_keeps_default(self):
         self.assertEqual(authority('https://www.tripadvisor.com/x'), 55.0)
 
+    def test_domain_lists_contain_only_hostnames(self):
+        ev = source_evaluator.SourceEvaluator
+        for d in ev.HIGH_AUTHORITY_DOMAINS | ev.MODERATE_AUTHORITY_DOMAINS:
+            with self.subTest(domain=d):
+                self.assertNotIn('/', d)
+
 
 # The three classes below come from upstream PR #10, with dates made relative
 # to today so the tests do not expire.
@@ -137,6 +146,39 @@ class TestExpertiseAuthor(unittest.TestCase):
             url='https://x.com', title='Study', author='Dr. Smith'
         ).expertise
         self.assertGreater(with_cred, base)
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True)
+
+
+class TestCli(unittest.TestCase):
+    def test_single_source_returns_object(self):
+        result = run_cli('--json', json.dumps({'url': 'https://www.scielo.br/x', 'title': 'Artigo'}))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        self.assertEqual(out['url'], 'https://www.scielo.br/x')
+        self.assertEqual(out['domain_authority'], 90.0)
+        self.assertIn(out['recommendation'], ('high_trust', 'moderate_trust', 'low_trust', 'verify'))
+
+    def test_array_returns_one_result_per_source(self):
+        sources = [
+            {'url': 'https://g1.globo.com/x', 'title': 'Notícia', 'publication_date': '2026-10-01'},
+            {'url': 'https://x.blogspot.com/y', 'title': 'Post', 'author': 'Dr. Silva'},
+        ]
+        result = run_cli('--json', json.dumps(sources))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        self.assertEqual([r['url'] for r in out], [s['url'] for s in sources])
+
+    def test_missing_title_fails_with_message(self):
+        result = run_cli('--json', json.dumps({'url': 'https://x.com'}))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('title', result.stderr)
+
+    def test_invalid_json_fails(self):
+        result = run_cli('--json', '{not json')
+        self.assertNotEqual(result.returncode, 0)
 
 
 if __name__ == '__main__':

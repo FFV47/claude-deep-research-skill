@@ -66,7 +66,8 @@ Mode Selection
 **Scripts:**
 - `python scripts/validate_report.py --report [path]`
 - `python scripts/verify_citations.py --report [path]`
-- `python scripts/md_to_html.py [markdown_path]`
+- `python scripts/md_to_html.py [markdown_path] --out [html_path] --title "[title]" --source-count [N]`
+- `python scripts/source_evaluator.py --json '[{"url": "...", "title": "..."}]'`
 
 ---
 

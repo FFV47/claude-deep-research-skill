@@ -164,7 +164,8 @@ As results arrive:
 - Geographic diversity (not just US sources)
 
 **Credibility tracking:**
-- Score each source 0-100 using source_evaluator.py
+- Score each source 0-100 using source_evaluator.py (batch all sources in one call; keys: url, title, publication_date, author, content):
+  `python scripts/source_evaluator.py --json '[{"url": "...", "title": "...", "publication_date": "YYYY-MM-DD"}]'`
 - Flag low-credibility sources (<40) for additional verification
 - Prioritize high-credibility sources (>80) for core claims
 
