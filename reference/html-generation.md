@@ -74,13 +74,8 @@ NOTE: This step is optional for speed. Basic [N] citations are sufficient.
 ```bash
 python scripts/verify_html.py --html [html_path] --md [md_path]
 ```
-- Pass: Proceed to open
+- Pass: Done. Do not open the file; report its path to the user
 - Fail: Fix errors and re-run
-
-### Step 7: Open in Browser
-```bash
-open [html_path]
-```
 
 ---
 
@@ -96,7 +91,7 @@ open [html_path]
    - Use `display: table` not Flexbox/Grid
    - Font sizes in pt (10pt body, 8pt citations)
 3. Generate: `weasyprint [html_path] [pdf_path]`
-4. Open: `open [pdf_path]`
+4. Do not open the PDF; report its path to the user
 
 **Option B: generating-pdf Skill**
 

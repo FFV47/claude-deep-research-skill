@@ -88,8 +88,10 @@ Mode Selection
 - `evidence.jsonl` — append-only evidence store with quotes and locators
 - `claims.jsonl` — atomic claim ledger with support status
 - `run_manifest.json` — query, mode, assumptions, provider config
-- HTML (McKinsey style, auto-opened)
-- PDF (professional print, auto-opened)
+- HTML (McKinsey style)
+- PDF (professional print)
+
+Do not open the HTML or PDF files when finished; report their paths to the user.
 
 **Quality standards:**
 - 10+ sources, 3+ per major claim (cluster-independent, not just count)
