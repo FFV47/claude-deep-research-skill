@@ -32,6 +32,24 @@ def write_jsonl(path: str, rows: list[dict]):
             f.write(json.dumps(row) + '\n')
 
 
+class TestYearExtraction(unittest.TestCase):
+    """Regression for upstream PR #3: YEAR_RE must return whole years."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('verify_claim_support', SCRIPT)
+        self.vcs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.vcs)
+
+    def test_extract_years_returns_full_years(self):
+        self.assertEqual(self.vcs.extract_years('in 2024 and 2025'), {'2024', '2025'})
+
+    def test_year_mismatch_is_detected(self):
+        _, _, notes = self.vcs.compute_support_score(
+            'Revenue grew in 2024.', ['Revenue grew in 2019.'])
+        self.assertIn('year mismatch', notes)
+
+
 class TestVerifySupported(unittest.TestCase):
     """Claims with matching evidence should be supported."""
 
