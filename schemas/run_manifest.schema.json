@@ -55,14 +55,14 @@
       "properties": {
         "primary": {
           "type": "string",
-          "description": "Primary search provider (e.g. WebSearch)"
+          "description": "Primary search provider (e.g. mcp, WebSearch)"
         },
         "scholarly": {
           "type": ["string", "null"],
           "description": "Scholarly API provider if configured (e.g. openalex, semantic_scholar)"
         }
       },
-      "default": { "primary": "search-cli", "scholarly": null }
+      "default": { "primary": "mcp", "scholarly": null }
     },
     "report_dir": {
       "type": "string",

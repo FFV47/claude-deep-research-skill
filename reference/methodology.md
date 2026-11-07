@@ -71,27 +71,18 @@ Use the returned year for all date-filtered queries and recency checks. Do NOT a
 
 **CRITICAL: Use correct tool and parameters to avoid errors**
 
-**Primary: search-cli (multi-provider, always use first)**
-- Unified CLI aggregating Brave, Serper, Exa, Jina, and Firecrawl
-- Auto-detects best provider per query type (academic, news, general, people)
-- JSON output for structured processing: `search "query" --json`
-- Modes: general, news, academic, scholar, patents, people, images, extract, scrape
-- Example: `search "quantum computing 2025" -m academic --json -c 15`
-- For page content extraction: `search "URL" -m extract --json`
-- For scraping: `search "URL" -m scrape --json`
-- Run via Bash tool: `search "query" --json -c 10`
+**Primary: search tools from connected MCP servers (always check first)**
+- Before the first search, check which MCP tools this session exposes. MCP tools are named `mcp__<server>__<tool>`; search tools usually have `search`, `research`, `extract`, `fetch`, `scrape` or `crawl` in the name (e.g. Tavily, Exa, Jina, Firecrawl or Brave servers)
+- If only tool names are listed (deferred schemas), load the schemas before calling them (in Claude Code: `ToolSearch` with `select:<tool_name>`)
+- Read each tool's parameter schema before the first call; parameter names differ between servers
+- Use the MCP tools for both search and page extraction
+- If several search MCPs are connected, spread the query angles across them for source diversity
 
-**Fallback: WebSearch (if search-cli fails or is unavailable)**
-- Built-in Claude web search, no setup required
-- Parameters: `query` (required), optional `allowed_domains`, `blocked_domains`
-- Use when: search-cli returns errors, rate-limited, or for domain-restricted queries
+**Fallback: native WebSearch / WebFetch**
+- Use only when no search MCP is connected, or when the MCP tool fails, is rate-limited, or lacks a needed feature (e.g. domain filters)
+- WebSearch parameters: `query` (required), optional `allowed_domains`, `blocked_domains`
 
-**Optional: Exa MCP (if configured, for semantic/neural search)**
-- Tool name: `mcp__Exa__exa_search`
-- Use for semantic exploration alongside search-cli keyword results
-
-
-**NEVER mix parameter styles** - this causes "Invalid tool parameters" errors.
+**NEVER mix parameter styles** - each tool has its own schema; mixing them causes "Invalid tool parameters" errors.
 
 **Step 2: Spawn parallel deep-dive agents**
 
@@ -117,26 +108,26 @@ python scripts/evidence_store.py add --json '{"source_id": "...", "quote": "exac
 ```
 Evidence must not live only in model context — it must be persisted to `evidence.jsonl` before synthesis begins. This ensures continuation agents and claim-support verification can access the full evidence trail.
 
-**Example parallel execution (using search-cli via Bash):**
+**Example parallel execution (MCP search tools; server and tool names are placeholders):**
 ```
-[Single message with multiple Bash tool calls]
-- Bash: search "quantum computing 2026 state of the art" --json -c 10
-- Bash: search "quantum computing limitations challenges" --json -c 10
-- Bash: search "quantum computing commercial applications 2026" -m news --json -c 10
-- Bash: search "quantum computing vs classical comparison" --json -c 10
-- Bash: search "quantum error correction research" -m academic --json -c 10
+[Single message with multiple tool calls]
+- mcp__<search_server>__<search_tool>(query="quantum computing 2026 state of the art", ...)
+- mcp__<search_server>__<search_tool>(query="quantum computing limitations challenges", ...)
+- mcp__<search_server>__<search_tool>(query="quantum computing commercial applications 2026", ...)
+- mcp__<other_search_server>__<search_tool>(query="quantum computing vs classical comparison", ...)
+- mcp__<other_search_server>__<search_tool>(query="quantum error correction research", ...)
 - Task(subagent_type="general-purpose", description="Analyze quantum computing papers", prompt="Deep dive into quantum computing academic papers from [CURRENT_YEAR], extract key findings and methodologies")
 - Task(subagent_type="general-purpose", description="Industry analysis", prompt="Analyze quantum computing industry reports and market data, identify commercial applications")
 - Task(subagent_type="general-purpose", description="Technical challenges", prompt="Extract technical limitations and challenges from quantum computing research")
 ```
+`...` stands for the options in that tool's own schema (result count, date filter, domain filter).
 
-**Example parallel execution (using Exa MCP - if available):**
+**Fallback example (no search MCP connected):**
 ```
 [Single message with multiple tool calls]
-- mcp__Exa__exa_search(query="quantum computing state of the art", type="neural", num_results=10, start_published_date="[use current year from Step 0]")
-- mcp__Exa__exa_search(query="quantum computing limitations", type="keyword", num_results=10)
-- mcp__Exa__exa_search(query="quantum computing commercial", type="auto", num_results=10, start_published_date="[use current year from Step 0]")
-- mcp__Exa__exa_search(query="quantum error correction", type="neural", num_results=10, include_domains=["arxiv.org"])
+- WebSearch(query="quantum computing 2026 state of the art")
+- WebSearch(query="quantum computing limitations challenges")
+- WebSearch(query="quantum error correction research", allowed_domains=["arxiv.org"])
 - Task(subagent_type="general-purpose", description="Academic analysis", prompt="Analyze quantum computing academic papers")
 ```
 
@@ -178,10 +169,9 @@ As results arrive:
 - Prioritize high-credibility sources (>80) for core claims
 
 **Techniques:**
-- Use search-cli for all searches (primary tool, multi-provider)
-- Fall back to WebSearch if search-cli fails or is rate-limited
-- Use WebFetch for deep dives into specific sources (secondary)
-- Use Exa search (via WebSearch with type="neural") for semantic exploration
+- Use search tools from connected MCP servers first (primary)
+- Fall back to native WebSearch if no search MCP is connected, or if it fails or is rate-limited
+- For deep dives into specific sources, use the MCP's extract/fetch tool; fall back to WebFetch
 - Use Grep/Read for local documentation
 - Execute code for computational analysis (when needed)
 - Use Task tool to spawn parallel retrieval agents (3-5 agents)

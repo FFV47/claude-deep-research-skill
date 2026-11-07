@@ -122,7 +122,7 @@ def cmd_init_run(args: argparse.Namespace) -> None:
         'finished_at': None,
         'assumptions': [],
         'provider_config': {
-            'primary': 'search-cli',
+            'primary': 'mcp',
             'scholarly': None,
         },
         'report_dir': out_dir,

@@ -11,15 +11,6 @@ git clone https://github.com/199-biotechnologies/claude-deep-research-skill.git 
 
 No additional dependencies required for basic usage.
 
-### Optional: search-cli (multi-provider search)
-
-For aggregated search across Brave, Serper, Exa, Jina, and Firecrawl:
-
-```bash
-brew tap 199-biotechnologies/tap && brew install search-cli
-search config set keys.brave YOUR_KEY  # configure at least one provider
-```
-
 ## Usage
 
 ```
@@ -73,9 +64,8 @@ Reports >18K words auto-continue via recursive agent spawning with context prese
 
 | Tool | Priority | Setup |
 |------|----------|-------|
-| search-cli | **Primary** — all searches go here first | `brew install search-cli` + API keys |
-| WebSearch | Fallback — if search-cli fails or rate-limited | None (built-in) |
-| Exa MCP | Optional — semantic/neural search alongside search-cli | MCP config |
+| Search MCP servers (e.g. Tavily, Exa, Jina, Firecrawl, Brave) | **Primary** — any connected MCP search tool is used first | MCP config |
+| WebSearch / WebFetch | Fallback — no search MCP connected, or it fails or is rate-limited | None (built-in) |
 
 ## Architecture
 
