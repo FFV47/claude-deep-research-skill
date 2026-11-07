@@ -1,6 +1,6 @@
 ---
 name: deep-research
-description: Use when the user needs multi-source research with citation tracking, evidence persistence, and structured report generation. Triggers on "deep research", "comprehensive analysis", "research report", "compare X vs Y", "analyze trends", or "state of the art". Not for simple lookups, debugging, or questions answerable with 1-2 searches.
+description: Use when the user needs multi-source research with citation tracking, evidence persistence, and structured report generation. Triggers on "deep research", "comprehensive analysis", "research report", "compare X vs Y", "analyze trends", or "state of the art". Not for debugging.
 ---
 
 # Deep Research
@@ -17,12 +17,11 @@ Deliver citation-tracked research reports through a structured pipeline with evi
 
 ```
 Request Analysis
-+-- Simple lookup? --> STOP: Use WebSearch
 +-- Debugging? --> STOP: Use standard tools
-+-- Complex analysis needed? --> CONTINUE
++-- Any other research request --> CONTINUE
 
 Mode Selection
-+-- Initial exploration --> quick (3 phases, 2-5 min)
++-- Quick question or initial exploration --> quick (3 phases, 2-5 min)
 +-- Standard research --> standard (6 phases, 5-10 min) [DEFAULT]
 +-- Critical decision --> deep (8 phases, 10-20 min)
 +-- Comprehensive review --> ultradeep (8+ phases, 20-45 min)
@@ -105,4 +104,4 @@ Mode Selection
 
 **Use:** Comprehensive analysis, technology comparisons, state-of-the-art reviews, multi-perspective investigation, market analysis.
 
-**Do NOT use:** Simple lookups, debugging, 1-2 search answers, quick time-sensitive queries.
+**Do NOT use:** Debugging.
