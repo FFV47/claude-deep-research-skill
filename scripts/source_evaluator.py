@@ -26,8 +26,19 @@ class CredibilityScore:
 class SourceEvaluator:
     """Evaluates source credibility and quality"""
 
-    # Domain reputation tiers
-    HIGH_AUTHORITY_DOMAINS = {
+    # Brazilian academic & research institutions (also raise expertise and neutrality)
+    BR_ACADEMIC_DOMAINS = {
+        'scielo.br', 'scielo.org', 'cnpq.br', 'ibict.br', 'fiocruz.br',
+        'embrapa.br', 'inpe.br', 'fgv.br', 'edu.br',
+        'usp.br', 'unicamp.br', 'unesp.br', 'unifesp.br', 'ufrj.br', 'ufmg.br',
+        'ufrgs.br', 'unb.br', 'ufsc.br', 'ufpr.br', 'ufpe.br', 'ufba.br', 'uff.br'
+    }
+
+    # Brazilian public sector: executive, legislative, judiciary, prosecutors
+    BR_PUBLIC_SECTOR_DOMAINS = {'gov.br', 'leg.br', 'jus.br', 'mp.br'}
+
+    # Domain reputation tiers (entries match the domain itself and its subdomains)
+    HIGH_AUTHORITY_DOMAINS = BR_ACADEMIC_DOMAINS | BR_PUBLIC_SECTOR_DOMAINS | {
         # Academic & Research
         'arxiv.org', 'nature.com', 'science.org', 'cell.com', 'nejm.org',
         'thelancet.com', 'springer.com', 'sciencedirect.com', 'plos.org',
@@ -58,7 +69,16 @@ class SourceEvaluator:
         'wikipedia.org', 'britannica.com', 'khanacademy.org',
 
         # Tech Blogs (established)
-        'medium.com', 'dev.to', 'stackoverflow.com', 'github.com'
+        'medium.com', 'dev.to', 'stackoverflow.com', 'github.com',
+
+        # Brazilian news, business press & fact-checkers
+        'folha.uol.com.br', 'estadao.com.br', 'oglobo.globo.com', 'g1.globo.com',
+        'valor.globo.com', 'agenciabrasil.ebc.com.br', 'cnnbrasil.com.br',
+        'exame.com', 'infomoney.com.br', 'nexojornal.com.br', 'jota.info',
+        'aosfatos.org', 'lupa.uol.com.br',
+
+        # Brazilian tech news
+        'tecnoblog.net', 'canaltech.com.br'
     }
 
     LOW_AUTHORITY_INDICATORS = [
@@ -120,11 +140,16 @@ class SourceEvaluator:
         domain = domain.replace('www.', '')
         return domain
 
+    @staticmethod
+    def _matches(domain: str, domains) -> bool:
+        """True if domain is one of `domains` or a subdomain of one."""
+        return any(domain == d or domain.endswith('.' + d) for d in domains)
+
     def _evaluate_domain_authority(self, domain: str) -> float:
         """Evaluate domain authority (0-100)"""
-        if domain in self.HIGH_AUTHORITY_DOMAINS:
+        if self._matches(domain, self.HIGH_AUTHORITY_DOMAINS):
             return 90.0
-        elif domain in self.MODERATE_AUTHORITY_DOMAINS:
+        elif self._matches(domain, self.MODERATE_AUTHORITY_DOMAINS):
             return 70.0
         elif any(indicator in domain for indicator in self.LOW_AUTHORITY_INDICATORS):
             return 40.0
@@ -166,11 +191,13 @@ class SourceEvaluator:
         score = 50.0
 
         # Academic/research domains get high expertise
-        if any(d in domain for d in ['arxiv', 'nature', 'science', 'ieee', 'acm']):
+        if (any(d in domain for d in ['arxiv', 'nature', 'science', 'ieee', 'acm'])
+                or self._matches(domain, self.BR_ACADEMIC_DOMAINS)):
             score += 30
 
         # Government/official sources
-        if '.gov' in domain or 'who.int' in domain:
+        if ('.gov' in domain or 'who.int' in domain
+                or self._matches(domain, self.BR_PUBLIC_SECTOR_DOMAINS)):
             score += 25
 
         # Technical documentation
@@ -196,20 +223,25 @@ class SourceEvaluator:
         # Check for sensationalism in title
         sensational_indicators = [
             '!', 'shocking', 'unbelievable', 'you won\'t believe',
-            'secret', 'they don\'t want you to know'
+            'secret', 'they don\'t want you to know',
+            'chocante', 'inacreditável', 'você não vai acreditar',
+            'segredo', 'não querem que você saiba'
         ]
         title_lower = title.lower()
         if any(indicator in title_lower for indicator in sensational_indicators):
             score -= 20
 
         # Academic sources are typically less biased
-        if any(d in domain for d in ['arxiv', 'nature', 'science', 'ieee']):
+        if (any(d in domain for d in ['arxiv', 'nature', 'science', 'ieee'])
+                or self._matches(domain, self.BR_ACADEMIC_DOMAINS)):
             score += 20
 
         # Check for balance in content (if available)
         if content:
             # Look for balanced language
-            balanced_indicators = ['however', 'although', 'on the other hand', 'critics argue']
+            balanced_indicators = ['however', 'although', 'on the other hand', 'critics argue',
+                                   'no entanto', 'entretanto', 'embora', 'por outro lado',
+                                   'críticos argumentam']
             if any(indicator in content.lower() for indicator in balanced_indicators):
                 score += 10
 
