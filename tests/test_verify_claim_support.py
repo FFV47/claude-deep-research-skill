@@ -244,5 +244,204 @@ class TestSupportScore(unittest.TestCase):
         self.assertLess(score, 0.35)
 
 
+class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
+    """Regression for upstream issue #14: contradicting, empty and unrelated
+    evidence must not be scored as support."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+        from verify_claim_support import compute_support_score
+        cls.score = staticmethod(compute_support_score)
+
+    def assertNegationMismatch(self, claim, quote):
+        status, _, notes = self.score(claim, [quote])
+        self.assertEqual(status, 'needs_review', f'{claim!r} vs {quote!r}')
+        self.assertIn('negation mismatch', notes)
+
+    def test_en_negated_evidence(self):
+        self.assertNegationMismatch(
+            'The museum is open on Mondays.', 'The museum is not open on Mondays.')
+
+    def test_en_negated_claim(self):
+        self.assertNegationMismatch(
+            'The museum is not open on Mondays.', 'The museum is open on Mondays.')
+
+    def test_en_no_and_never(self):
+        self.assertNegationMismatch(
+            'The museum opens on Mondays.', 'The museum never opens on Mondays.')
+        self.assertNegationMismatch(
+            'The museum charges entry fees.', 'The museum charges no entry fees.')
+        self.assertNegationMismatch(
+            'The museum opens on Mondays.', "The museum doesn't open on Mondays.")
+
+    def test_pt_negation(self):
+        self.assertNegationMismatch(
+            'O museu abre às segundas.', 'O museu não abre às segundas.')
+        self.assertNegationMismatch(
+            'O museu não abre às segundas.', 'O museu abre às segundas.')
+        self.assertNegationMismatch(
+            'O museu abre às segundas.', 'O museu nunca abre às segundas.')
+        self.assertNegationMismatch(
+            'O museu abre às segundas e aos domingos.',
+            'O museu nem abre às segundas nem aos domingos.')
+
+    def test_pt_accented_words_count_as_tokens(self):
+        status, _, notes = self.score(
+            'A inflação subiu em março.', ['A produção subiu em agosto.'])
+        self.assertNotEqual(status, 'supported')
+        self.assertNotIn('adequate', notes)
+
+    def assertNoSharedContent(self, claim, quotes):
+        status, score, notes = self.score(claim, quotes)
+        self.assertEqual(status, 'needs_review', f'{claim!r} vs {quotes!r}')
+        self.assertEqual(score, 0.0)
+        self.assertIn('no shared content', notes)
+
+    def test_empty_quote(self):
+        self.assertNoSharedContent('The museum is open on Mondays.', [''])
+
+    def test_pt_unrelated_evidence(self):
+        self.assertNoSharedContent('A inflação subiu em março.', ['Choveu ontem à tarde.'])
+
+    def test_unrelated_evidence_with_number_and_year(self):
+        self.assertNoSharedContent('Revenue grew 40% in 2024.', ['Choveu ontem à tarde.'])
+
+    def test_zh_negation(self):
+        self.assertNegationMismatch('示例馆周一开放。', '示例馆周一不开放。')
+        self.assertNegationMismatch('示例馆周一开放。', '示例馆周一没有开放。')
+
+    def test_zh_unrelated_evidence(self):
+        self.assertNoSharedContent('示例馆周一开放。', ['今天下雨。'])
+
+    def test_zh_empty_quote(self):
+        self.assertNoSharedContent('示例馆周一开放。', [''])
+
+    def test_positive_controls_stay_supported(self):
+        for claim in ('The museum is open on Mondays.',
+                      'O museu abre às segundas.',
+                      'A inflação subiu em março.',
+                      '示例馆周一开放。'):
+            status, score, notes = self.score(claim, [claim])
+            self.assertEqual(status, 'supported', claim)
+            self.assertEqual(score, 1.0, claim)
+            self.assertEqual(notes, 'adequate overlap', claim)
+
+    def test_decomposed_accents_match_composed(self):
+        import unicodedata
+        claim = 'A inflação subiu em março.'
+        status, _, _ = self.score(claim, [unicodedata.normalize('NFD', claim)])
+        self.assertEqual(status, 'supported')
+
+    def test_issue_no_evidence_case(self):
+        self.assertEqual(
+            self.score('The museum is open on Mondays.', []),
+            ('unsupported', 0.0, 'no evidence linked'))
+
+    def test_notes_skip_components_the_claim_lacks(self):
+        # No 4+ letter words in the claim, so lexical overlap is not scored
+        # and must not be reported as low.
+        _, _, notes = self.score('Tim is 30.', ['Tim is 30.'])
+        self.assertEqual(notes, 'adequate overlap')
+
+    def test_chemical_formula_is_not_negation(self):
+        status, _, _ = self.score(
+            'Emissions fell sharply in cities.',
+            ['NO2 emissions fell sharply in cities.'],
+        )
+        self.assertEqual(status, 'supported')
+
+    def test_zh_paraphrase_shares_tokens(self):
+        status, _, _ = self.score('示例馆周一开放。', ['周一示例馆开放。'])
+        self.assertEqual(status, 'supported')
+
+
+class TestStrictBlocksWeakSupport(unittest.TestCase):
+    """Regression for upstream issue #14: --strict must also fail on
+    needs_review, which is what contradicting or unrelated evidence yields."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        write_jsonl(os.path.join(self.tmpdir, 'sources.jsonl'), [
+            {'source_id': 'src_001', 'title': 'Fixture'},
+        ])
+        write_jsonl(os.path.join(self.tmpdir, 'evidence.jsonl'), [
+            {'evidence_id': 'ev_neg', 'source_id': 'src_001',
+             'quote': 'O museu não abre às segundas.'},
+            {'evidence_id': 'ev_rain', 'source_id': 'src_001',
+             'quote': 'Choveu ontem à tarde.'},
+        ])
+        write_jsonl(os.path.join(self.tmpdir, 'claims.jsonl'), [
+            {'claim_id': 'clm_museu', 'section_id': 'finding_1',
+             'text': 'O museu abre às segundas.', 'claim_type': 'factual',
+             'cited_source_ids': [], 'evidence_ids': ['ev_neg']},
+            {'claim_id': 'clm_inflacao', 'section_id': 'finding_1',
+             'text': 'A inflação subiu em março.', 'claim_type': 'factual',
+             'cited_source_ids': [], 'evidence_ids': ['ev_rain']},
+            {'claim_id': 'clm_revenue', 'section_id': 'finding_2',
+             'text': 'Revenue grew 40% in 2024.', 'claim_type': 'factual',
+             'cited_source_ids': [], 'evidence_ids': ['ev_rain']},
+        ])
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def read_claims(self):
+        with open(os.path.join(self.tmpdir, 'claims.jsonl')) as f:
+            return {c['claim_id']: c for c in map(json.loads, f)}
+
+    def test_strict_fails_on_needs_review(self):
+        result = subprocess.run(
+            [sys.executable, SCRIPT, 'verify', '--dir', self.tmpdir, '--strict'],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout)
+        out = json.loads(result.stdout)
+        self.assertEqual(out['status'], 'fail')
+        self.assertEqual(out['factual_needs_review'], 3)
+
+        claims = self.read_claims()
+        self.assertIn('negation mismatch', claims['clm_museu']['_support_notes'])
+        for cid in ('clm_inflacao', 'clm_revenue'):
+            self.assertEqual(claims[cid]['support_status'], 'needs_review')
+            self.assertIn('no shared content', claims[cid]['_support_notes'])
+
+    def test_non_strict_still_passes(self):
+        out = run_vcs('verify', '--dir', self.tmpdir)
+        self.assertEqual(out['status'], 'pass')
+
+
+class TestReportWording(unittest.TestCase):
+    """Regression for upstream issue #14: the report must not overstate a
+    lexical heuristic as adequate support."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def report(self, statuses):
+        write_jsonl(os.path.join(self.tmpdir, 'claims.jsonl'), [
+            {'claim_id': f'clm_{i}', 'section_id': 'finding_1',
+             'text': f'Claim number {i}.', 'claim_type': 'factual',
+             'support_status': status, '_support_notes': 'low lexical overlap'}
+            for i, status in enumerate(statuses)
+        ])
+        return run_vcs('report', '--dir', self.tmpdir)
+
+    def test_partial_claims_are_listed_not_called_adequate(self):
+        out = self.report(['supported', 'partial'])
+        self.assertNotIn('adequate support', out)
+        self.assertIn('Partially Supported', out)
+        self.assertIn('Claim number 1.', out)
+
+    def test_report_states_check_is_lexical_heuristic(self):
+        for statuses in (['supported'], ['partial'], ['needs_review']):
+            out = self.report(statuses)
+            self.assertNotIn('adequate support', out)
+            self.assertIn('not semantic verification', out)
+
+
 if __name__ == '__main__':
     unittest.main()

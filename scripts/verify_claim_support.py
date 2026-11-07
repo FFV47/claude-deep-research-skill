@@ -6,10 +6,11 @@ CLI subcommands:
   verify       Check all claims against evidence, update support_status
   report       Generate a support verification summary
 
-Version 1 is deterministic and cheap: entity, number, date, and
-lexical-overlap checks over stored evidence. No LLM calls.
+Version 1 is deterministic and cheap: entity, number, date,
+lexical-overlap and negation checks over stored evidence. No LLM calls.
+It is a heuristic, not semantic verification.
 
-Only factual claims hard-fail on unsupported status.
+Only factual claims hard-fail (--strict) on unsupported or needs_review status.
 Synthesis/recommendation need traceability but softer thresholds.
 """
 
@@ -18,6 +19,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -64,10 +66,47 @@ STOP_ENTITIES = frozenset([
 ])
 
 
+# Negation markers. A claim and a quote that disagree on negation are
+# treated as a contradiction, not as support.
+NEGATION_WORDS = frozenset([
+    'not', 'no', 'never', 'cannot',          # en
+    'não', 'nunca', 'nem', 'jamais',         # pt
+])
+CJK_NEGATIONS = ('不', '没')                  # zh, matched as characters
+
+# Han ideographs: CJK Unified Ideographs and Extension A. Chinese has no
+# spaces between words, so runs are split into character bigrams.
+CJK_RE = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff]+')
+WORD_RE = re.compile(r'[^\W\d_]+')
+# Whole words only, so "no" inside "NO2" is not a negation.
+NEGATION_WORD_RE = re.compile(r"\b[^\W\d_]+(?:['’]t)?\b")
+
+
+def normalize_text(text: str) -> str:
+    """NFC-normalize and lowercase, so composed and decomposed accents match."""
+    return unicodedata.normalize('NFC', text).lower()
+
+
+def has_negation(text: str) -> bool:
+    """Return True if the text contains a negation marker."""
+    text = normalize_text(text)
+    if any(ch in text for ch in CJK_NEGATIONS):
+        return True
+    words = NEGATION_WORD_RE.findall(text)
+    return any(w in NEGATION_WORDS or w.endswith(("n't", "n’t")) for w in words)
+
+
 def extract_tokens(text: str) -> set[str]:
-    """Extract significant lowercase tokens (>3 chars)."""
-    words = re.findall(r'\b[a-z]{4,}\b', text.lower())
-    return set(words)
+    """Extract significant tokens: words of 4+ letters in alphabetic
+    scripts, and character bigrams in Han text."""
+    text = normalize_text(text)
+    tokens = {w for w in WORD_RE.findall(CJK_RE.sub(' ', text)) if len(w) >= 4}
+    for run in CJK_RE.findall(text):
+        if len(run) == 1:
+            tokens.add(run)
+        else:
+            tokens.update(run[i:i + 2] for i in range(len(run) - 1))
+    return tokens
 
 
 def extract_numbers(text: str) -> set[str]:
@@ -86,6 +125,10 @@ def extract_entities(text: str) -> set[str]:
     return ents - STOP_ENTITIES
 
 
+SUPPORTED_THRESHOLD = 0.6
+PARTIAL_THRESHOLD = 0.35
+
+
 def compute_support_score(claim_text: str, evidence_quotes: list[str]) -> tuple[str, float, str]:
     """
     Compute support status for a claim given its linked evidence quotes.
@@ -101,8 +144,11 @@ def compute_support_score(claim_text: str, evidence_quotes: list[str]) -> tuple[
     claim_years = extract_years(claim_text)
     claim_entities = extract_entities(claim_text)
 
-    best_score = 0.0
+    claim_negated = has_negation(claim_text)
+
+    best_score = -1.0  # below any real score, so the first quote sets notes
     best_notes = []
+    contradicted = False
 
     for quote in evidence_quotes:
         ev_tokens = extract_tokens(quote)
@@ -120,32 +166,44 @@ def compute_support_score(claim_text: str, evidence_quotes: list[str]) -> tuple[
         if claim_numbers:
             number_match = len(claim_numbers & ev_numbers) / len(claim_numbers)
         else:
-            number_match = 1.0  # No numbers to check
+            number_match = 0.0
 
         # Year match
         if claim_years:
             year_match = len(claim_years & ev_years) / len(claim_years)
         else:
-            year_match = 1.0
+            year_match = 0.0
 
         # Entity match
         if claim_entities:
             entity_match = len(claim_entities & ev_entities) / len(claim_entities)
         else:
-            entity_match = 1.0
+            entity_match = 0.0
 
-        # Weighted composite
+        # Weighted composite over the components the claim actually has.
+        # A component absent from the claim is left out instead of counting
+        # as a full match.
+        components = [
+            (0.4, token_overlap, claim_tokens),
+            (0.25, number_match, claim_numbers),
+            (0.15, year_match, claim_years),
+            (0.2, entity_match, claim_entities),
+        ]
+        weight = sum(w for w, _, present in components if present)
         score = (
-            0.4 * token_overlap +
-            0.25 * number_match +
-            0.15 * year_match +
-            0.2 * entity_match
+            sum(w * m for w, m, present in components if present) / weight
+            if weight else 0.0
         )
+
+        if score >= PARTIAL_THRESHOLD and has_negation(quote) != claim_negated:
+            contradicted = True
 
         if score > best_score:
             best_score = score
             best_notes = []
-            if token_overlap < 0.3:
+            if score == 0.0:
+                best_notes.append('no shared content with evidence')
+            elif claim_tokens and token_overlap < 0.3:
                 best_notes.append('low lexical overlap')
             if claim_numbers and number_match < 0.5:
                 best_notes.append('number mismatch')
@@ -154,15 +212,23 @@ def compute_support_score(claim_text: str, evidence_quotes: list[str]) -> tuple[
             if claim_entities and entity_match < 0.3:
                 best_notes.append('entity mismatch')
 
+    if contradicted:
+        return ('needs_review', round(best_score, 3), 'negation mismatch with evidence')
+
     # Threshold decision
-    if best_score >= 0.6:
+    if best_score >= SUPPORTED_THRESHOLD:
         status = 'supported'
-    elif best_score >= 0.35:
+    elif best_score >= PARTIAL_THRESHOLD:
         status = 'partial'
     else:
         status = 'needs_review'
 
-    notes = '; '.join(best_notes) if best_notes else 'adequate overlap'
+    if best_notes:
+        notes = '; '.join(best_notes)
+    elif status == 'supported':
+        notes = 'adequate overlap'
+    else:
+        notes = 'overlap below support threshold'
     return (status, round(best_score, 3), notes)
 
 
@@ -246,11 +312,15 @@ def cmd_verify(args: argparse.Namespace) -> None:
         1 for c in updated_claims
         if c.get('claim_type') == 'factual' and c.get('support_status') == 'unsupported'
     )
+    factual_needs_review = sum(
+        1 for c in updated_claims
+        if c.get('claim_type') == 'factual' and c.get('support_status') == 'needs_review'
+    )
     total_factual = sum(1 for c in updated_claims if c.get('claim_type') == 'factual')
 
-    # Strict mode: fail if any factual claim is unsupported
+    # Strict mode: fail if any factual claim is unsupported or needs review
     passed = True
-    if args.strict and factual_unsupported > 0:
+    if args.strict and (factual_unsupported or factual_needs_review):
         passed = False
 
     print(json.dumps({
@@ -258,6 +328,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
         'verified': verified,
         'support_status_counts': dict(status_counts),
         'factual_unsupported': factual_unsupported,
+        'factual_needs_review': factual_needs_review,
         'total_factual': total_factual,
         'unsupported_rate': round(factual_unsupported / max(total_factual, 1), 3),
     }, indent=2))
@@ -304,10 +375,29 @@ def cmd_report(args: argparse.Namespace) -> None:
                 lines.append(f'  Notes: {c["_support_notes"]}')
         lines.append('')
 
-    # All clear
-    if not unsupported_factual:
-        lines.append('## All factual claims have adequate support.')
+    # Partial factual claims: some overlap, below the support threshold
+    partial_factual = [
+        c for c in unique
+        if c.get('claim_type') == 'factual' and c.get('support_status') == 'partial'
+    ]
+    if partial_factual:
+        lines.append('## Partially Supported Factual Claims')
         lines.append('')
+        for c in partial_factual:
+            lines.append(f'- [partial] `{c["section_id"]}`: {c["text"][:100]}...')
+            if c.get('_support_notes'):
+                lines.append(f'  Notes: {c["_support_notes"]}')
+        lines.append('')
+
+    if not unsupported_factual and not partial_factual:
+        lines.append('## All factual claims passed the lexical support check.')
+        lines.append('')
+
+    lines.append(
+        '_Support status comes from a lexical heuristic (shared words, '
+        'numbers, years, entities and negation). It is not semantic '
+        'verification: a claim marked supported can still misstate its source._'
+    )
 
     print('\n'.join(lines))
 
@@ -326,7 +416,7 @@ def main() -> None:
     # verify
     p_ver = sub.add_parser('verify', help='Verify claims against evidence')
     p_ver.add_argument('--dir', required=True, help='Run directory')
-    p_ver.add_argument('--strict', action='store_true', help='Exit 1 if any factual claim unsupported')
+    p_ver.add_argument('--strict', action='store_true', help='Exit 1 if any factual claim is unsupported or needs review')
 
     # report
     p_rep = sub.add_parser('report', help='Generate verification report')
