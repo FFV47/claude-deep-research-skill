@@ -393,6 +393,12 @@ class TestNegationOutsideSupportingPassage(unittest.TestCase):
         self.assertNoNegationMismatch('游客数量增加。', '游客数量不断增加。')
         self.assertNoNegationMismatch('示例馆周一开放。', '示例馆不仅周一开放，周二也开放。')
 
+    def test_zh_compounds_with_other_markers_are_not_negation(self):
+        # 非常 "very", 未来 "future", 无论 "no matter"
+        self.assertNoNegationMismatch('示例馆受欢迎。', '示例馆非常受欢迎。')
+        self.assertNoNegationMismatch('示例馆周一开放。', '未来示例馆周一开放。')
+        self.assertNoNegationMismatch('示例馆周一开放。', '无论如何示例馆周一开放。')
+
     def test_fixed_expressions_are_not_negation(self):
         claim = 'Studies show that exercise improves sleep quality.'
         self.assertNoNegationMismatch(
@@ -446,6 +452,52 @@ class TestNegationOutsideSupportingPassage(unittest.TestCase):
         status, _, notes = self.score('Revenue grew in 2024.', ['In 2024, revenue did not grow.'])
         self.assertEqual(status, 'needs_review')
         self.assertIn('negation mismatch', notes)
+
+
+class TestMoreNegationForms(unittest.TestCase):
+    """Unaccented "nao", negative pronouns, "cant" without an apostrophe and
+    the zh markers 未, 无, 非 negate: a claim and evidence that differ only
+    by one of them disagree, in either direction."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+        from verify_claim_support import compute_support_score
+        cls.score = staticmethod(compute_support_score)
+
+    def assertMismatchBothWays(self, affirmed, negated):
+        for claim, quote in ((affirmed, negated), (negated, affirmed)):
+            status, _, notes = self.score(claim, [quote])
+            self.assertEqual(status, 'needs_review', f'{claim!r} vs {quote!r}')
+            self.assertIn('negation mismatch', notes, f'{claim!r} vs {quote!r}')
+
+    def test_en_and_pt_negation_words(self):
+        for affirmed, negated in (
+            ('O museu abre às segundas.', 'O museu nao abre às segundas.'),
+            ('The museums in the city open on Mondays.',
+             'None of the museums in the city open on Mondays.'),
+            ('Students attended the lecture on Monday.',
+             'Nobody attended the lecture on Monday.'),
+            ('Visitors can enter the museum on Mondays.',
+             'Visitors cant enter the museum on Mondays.'),
+            ('O museu da cidade abre às segundas.',
+             'Nenhum museu da cidade abre às segundas.'),
+            ('A escola da cidade abre aos domingos.',
+             'Nenhuma escola da cidade abre aos domingos.'),
+            # Avoids the pt contraction "no" ("in the"): the lexicon reads it
+            # as en "no", so both sides would count as negated and cancel out.
+            ('O público visita o museu às segundas.',
+             'Ninguém do público visita o museu às segundas.'),
+        ):
+            self.assertMismatchBothWays(affirmed, negated)
+
+    def test_zh_negation_chars(self):
+        for affirmed, negated in (
+            ('示例馆周一开放。', '示例馆周一未开放。'),
+            ('示例馆周一有讲座。', '示例馆周一无讲座。'),
+            ('示例馆是博物馆。', '示例馆非博物馆。'),
+        ):
+            self.assertMismatchBothWays(affirmed, negated)
 
 
 class TestNegationLexiconFile(unittest.TestCase):

@@ -1,14 +1,14 @@
 {
   "description":"Read by verify_claim_support.py. negation_words: whole words that negate (en, pt). negation_chars: Han characters that negate (zh). exceptions: phrases or Han compounds that contain a negation marker but do not negate; they are ignored before negation is detected. clause_separators: words (en, pt) that start a new clause, like a comma does; a negation counts only in a clause that carries the claim's content. antonyms: pairs of word-form lists with opposite meanings; a negated word equals its antonym, so 'not closed' matches 'open'. List every inflected form, since words are compared exactly. Matching is case-insensitive.",
   "negation_words": [
-    "not", "no", "never", "cannot",
-    "não", "nunca", "nem", "jamais"
+    "not", "no", "never", "cannot", "cant", "none", "nobody",
+    "não", "nao", "nunca", "nem", "jamais", "nenhum", "nenhuma", "ninguém"
   ],
-  "negation_chars": ["不", "没"],
+  "negation_chars": ["不", "没", "未", "无", "非"],
   "exceptions": [
     "no doubt", "not only", "no matter", "not to mention",
     "não só", "não apenas", "não somente", "não obstante",
-    "不过", "不断", "不仅", "不但"
+    "不过", "不断", "不仅", "不但", "非常", "未来", "无论"
   ],
   "clause_separators": [
     "but", "although", "though", "whereas", "however",
