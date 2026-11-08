@@ -116,7 +116,7 @@ All files use same base name:
 - `research_report_20251104_topic_slug.html`
 - `research_report_20251104_topic_slug.pdf`
 
-**3. Also save copy to:** `~/.claude/research_output/` (internal tracking)
+**3. Keep every file in this folder.** Do not write copies or state files anywhere else.
 
 ---
 
