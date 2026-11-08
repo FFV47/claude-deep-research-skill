@@ -436,6 +436,13 @@ class TestNegationOutsideSupportingPassage(unittest.TestCase):
         self.assertNoNegationMismatch(
             claim, 'There is no doubt that studies show exercise improves sleep quality.')
 
+    def test_unaccented_fixed_expressions_are_not_negation(self):
+        claim = 'O museu abre às segundas.'
+        self.assertNoNegationMismatch(
+            claim, 'O museu nao só abre às segundas como também aos domingos.')
+        self.assertNoNegationMismatch(claim, 'O museu nao apenas abre às segundas.')
+        self.assertNoNegationMismatch(claim, 'O museu nao somente abre às segundas.')
+
     def test_negated_antonym_is_not_mismatch(self):
         for claim, quote in (
             ('The museum is open on Mondays.', 'The museum is not closed on Mondays.'),
