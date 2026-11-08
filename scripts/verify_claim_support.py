@@ -59,10 +59,29 @@ YEAR_RE = re.compile(r'\b(?:19|20)\d{2}\b')
 # Extract capitalized entities (naive NER)
 ENTITY_RE = re.compile(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b')
 
-# Common stop entities to ignore
+# Common words that ENTITY_RE catches when they start a sentence (en, pt).
+# ENTITY_RE only matches unaccented letters, so accented words are absent.
 STOP_ENTITIES = frozenset([
-    'The', 'This', 'That', 'These', 'However', 'Furthermore',
-    'Moreover', 'Additionally', 'Therefore', 'Nevertheless',
+    'The', 'This', 'That', 'These', 'Those', 'However', 'Furthermore',
+    'Moreover', 'Additionally', 'Therefore', 'Nevertheless', 'According',
+    'It', 'Its', 'He', 'She', 'We', 'They', 'You', 'There', 'Here',
+    'My', 'Our', 'Your', 'His', 'Her', 'Their', 'What', 'Which', 'Who',
+    'Some', 'None', 'No', 'Not', 'Nobody', 'Nothing', 'Neither', 'Never',
+    'All', 'Any', 'Each', 'Every', 'Many', 'Most', 'Few', 'Several', 'Both',
+    'Such', 'Only', 'Also', 'Even', 'Then', 'Now', 'An', 'In', 'On', 'At',
+    'By', 'For', 'From', 'With', 'As', 'If', 'When', 'While', 'Since',
+    'After', 'Before', 'During', 'And', 'But', 'Or', 'So',
+    'Isso', 'Isto', 'Este', 'Esta', 'Estes', 'Estas', 'Esse', 'Essa',
+    'Esses', 'Essas', 'Aquele', 'Aquela', 'Aquilo', 'Nenhum', 'Nenhuma',
+    'Ele', 'Ela', 'Eles', 'Elas', 'Dele', 'Dela', 'Um', 'Uma', 'Uns',
+    'Umas', 'Os', 'Meu', 'Minha', 'Meus', 'Minhas', 'Seu', 'Sua', 'Seus',
+    'Suas', 'Nosso', 'Nossa', 'Nossos', 'Nossas', 'Qual', 'Quais', 'Quem',
+    'Onde', 'Algum', 'Alguma', 'Alguns', 'Algumas', 'Todos', 'Todas',
+    'Cada', 'Muitos', 'Muitas', 'Nunca', 'Apenas', 'Somente', 'Ainda',
+    'Hoje', 'Depois', 'Antes', 'Durante', 'Segundo', 'Em', 'Na', 'Nos',
+    'Nas', 'De', 'Do', 'Da', 'Dos', 'Das', 'Ao', 'Aos', 'Pelo', 'Pela',
+    'Pelos', 'Pelas', 'Para', 'Por', 'Com', 'Sem', 'Se', 'Quando', 'Como',
+    'Mas',
 ])
 
 
@@ -142,11 +161,29 @@ def has_negation(text: str) -> bool:
     return any(w in NEGATION_WORDS or w.endswith("n't") for w in words)
 
 
+# Three-letter function words (en, pt). Other lowercase three-letter words
+# carry the claim's predicate ("won", "big"), so they count as tokens.
+# Negation words are left out, since the negation check handles them.
+SHORT_FUNCTION_WORDS = frozenset([
+    'the', 'and', 'for', 'are', 'was', 'but', 'nor', 'yet', 'you', 'all',
+    'any', 'can', 'had', 'has', 'her', 'his', 'its', 'our', 'who', 'how',
+    'why', 'may', 'did', 'per', 'via', 'she', 'him', 'own', 'too',
+    'que', 'uma', 'uns', 'com', 'por', 'dos', 'das', 'nos', 'nas', 'aos',
+    'mas', 'ele', 'ela', 'seu', 'sua', 'foi', 'são', 'sao', 'tem', 'era',
+    'ser', 'sem', 'até', 'ate', 'lhe', 'num',
+]) | NEGATION_WORDS
+
+
 def extract_tokens(text: str) -> set[str]:
-    """Extract significant tokens: words of 4+ letters in alphabetic
-    scripts, and character bigrams in Han text."""
+    """Extract significant tokens: in alphabetic scripts, words of 4+
+    letters and lowercase three-letter words other than function words; in
+    Han text, character bigrams. A capitalized three-letter word ("Tim",
+    "GDP") names the subject, which entities cover, so it is no token."""
+    tokens = {
+        w.lower() for w in WORD_RE.findall(CJK_RE.sub(' ', unicodedata.normalize('NFC', text)))
+        if len(w) >= 4 or (len(w) == 3 and w.islower() and w not in SHORT_FUNCTION_WORDS)
+    }
     text = normalize_text(text)
-    tokens = {w for w in WORD_RE.findall(CJK_RE.sub(' ', text)) if len(w) >= 4}
     for run in CJK_RE.findall(text):
         if len(run) == 1:
             tokens.add(run)
@@ -166,9 +203,16 @@ def extract_years(text: str) -> set[str]:
 
 
 def extract_entities(text: str) -> set[str]:
-    """Extract capitalized entity mentions."""
-    ents = set(ENTITY_RE.findall(text))
-    return ents - STOP_ENTITIES
+    """Extract capitalized entity mentions, without leading stop words,
+    so "Some Tesla" yields "Tesla" and "It" yields nothing."""
+    ents = set()
+    for match in ENTITY_RE.findall(text):
+        words = match.split()
+        while words and words[0] in STOP_ENTITIES:
+            words.pop(0)
+        if words:
+            ents.add(' '.join(words))
+    return ents
 
 
 # Scored components: (name, extractor, weight, mismatch threshold, note).
@@ -196,11 +240,25 @@ def score_quote(components: list[tuple], quote: str) -> tuple[float, list[tuple]
     """Score one quote against the claim components.
 
     Returns (score, matches), where matches holds
-    (name, match, weight, threshold, note) per component."""
-    matches = [
-        (name, len(claim_items & extract(quote)) / len(claim_items), weight, threshold, note)
-        for name, extract, claim_items, weight, threshold, note in components
-    ]
+    (name, match, weight, threshold, note) per component.
+
+    A word the claim and the quote share as an entity scores once, in the
+    entities component, and is left out of the tokens. Otherwise a shared
+    subject would also match as a token, and the quote "Tesla lost" would
+    support the claim "Tesla won"."""
+    claim_entities = next(
+        (items for name, _, items, *_ in components if name == 'entities'), set())
+    shared_entity_words = {
+        w for e in claim_entities & extract_entities(quote) for w in normalize_text(e).split()
+    }
+    matches = []
+    for name, extract, claim_items, weight, threshold, note in components:
+        if name == 'tokens':
+            claim_items = claim_items - shared_entity_words
+            if not claim_items:
+                continue
+        matches.append(
+            (name, len(claim_items & extract(quote)) / len(claim_items), weight, threshold, note))
     total_weight = sum(weight for _, _, weight, _, _ in matches)
     score = (
         sum(match * weight for _, match, weight, _, _ in matches) / total_weight

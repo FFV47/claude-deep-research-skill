@@ -491,6 +491,49 @@ class TestNegationOutsideSupportingPassage(unittest.TestCase):
         self.assertIn('negation mismatch', notes)
 
 
+class TestSingleSharedElementIsNotSupport(unittest.TestCase):
+    """A short claim is supported only when the evidence confirms what it
+    says, not just its subject."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+        import verify_claim_support
+        cls.vcs = verify_claim_support
+
+    def test_common_sentence_initial_words_are_not_entities(self):
+        for text in ('It is big.', 'Some museums open early.',
+                     'None of the museums open.', 'Isso mudou.',
+                     'Este museu abre.', 'Nenhum museu abre.'):
+            self.assertEqual(self.vcs.extract_entities(text), set(), text)
+
+    def test_common_word_before_a_name_is_not_part_of_the_entity(self):
+        self.assertEqual(self.vcs.extract_entities('Some Tesla cars sold.'), {'Tesla'})
+
+    def test_sentence_initial_names_stay_entities(self):
+        self.assertEqual(self.vcs.extract_entities('Tesla won.'), {'Tesla'})
+        self.assertEqual(self.vcs.extract_entities('Apple is big.'), {'Apple'})
+
+    def test_shared_subject_alone_is_not_supported(self):
+        for claim, quote in (
+            ('Tesla won.', 'Tesla lost.'),
+            ('Apple is big.', 'Apple fell sharply last year.'),
+            ('It is big.', 'It is small.'),
+            ('Our team won.', 'Our team lost.'),
+            ('Seu lucro subiu.', 'Seu lucro caiu.'),
+            # An acronym is part of the subject, not of what the claim says
+            ('GDP grew 3% in 2023.', 'GDP fell 3% in 2023.'),
+        ):
+            status, _, _ = self.vcs.compute_support_score(claim, [quote])
+            self.assertNotEqual(status, 'supported', f'{claim!r} vs {quote!r}')
+
+    def test_identical_short_claims_stay_supported(self):
+        for claim in ('Tesla won.', 'Apple is big.'):
+            status, score, _ = self.vcs.compute_support_score(claim, [claim])
+            self.assertEqual(status, 'supported', claim)
+            self.assertEqual(score, 1.0, claim)
+
+
 class TestNegationLexiconFile(unittest.TestCase):
     """Antonym pairs live in a data file: a pair added there takes effect
     without changing the code."""
