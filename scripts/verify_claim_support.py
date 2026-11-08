@@ -66,17 +66,46 @@ STOP_ENTITIES = frozenset([
 ])
 
 
-# Negation markers. A claim and a quote that disagree on negation are
-# treated as a contradiction, not as support.
-NEGATION_WORDS = frozenset([
-    'not', 'no', 'never', 'cannot',          # en
-    'não', 'nunca', 'nem', 'jamais',         # pt
-])
-CJK_NEGATIONS = frozenset(['不', '没'])       # zh, matched as characters
-
 # Han ideographs: CJK Unified Ideographs and Extension A. Chinese has no
 # spaces between words, so runs are split into character bigrams.
 CJK_RE = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff]+')
+
+
+def normalize_text(text: str) -> str:
+    """NFC-normalize and lowercase, so composed and decomposed accents match."""
+    return unicodedata.normalize('NFC', text).lower()
+
+
+# Negation markers and the phrases that contain one without negating live
+# in a data file next to this script, so they change without code edits.
+# A claim and a quote that disagree on negation are treated as a
+# contradiction, not as support.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       'negation_lexicon.json'), encoding='utf-8') as _f:
+    _LEXICON = json.load(_f)
+
+
+def _lexicon_words(key: str) -> list[str]:
+    """Return a lexicon list, NFC-normalized and lowercased."""
+    return [normalize_text(w) for w in _LEXICON[key]]
+
+
+NEGATION_WORDS = frozenset(_lexicon_words('negation_words'))
+CJK_NEGATIONS = frozenset(_lexicon_words('negation_chars'))
+
+# Exceptions match as whole words, except Han compounds, which have no
+# word boundaries. Longer phrases are tried first.
+NEGATION_EXCEPTION_RE = re.compile('|'.join(
+    re.escape(e) if CJK_RE.search(e) else rf'\b{re.escape(e)}\b'
+    for e in sorted(_lexicon_words('exceptions'), key=len, reverse=True)
+))
+
+# Antonym pairs, each side a set of word forms: a negated word equals its
+# antonym, so "not closed" agrees with "open".
+ANTONYM_PAIRS = [
+    tuple(frozenset(normalize_text(w) for w in side) for side in pair)
+    for pair in _LEXICON['antonyms']
+]
 
 # Extract words in any alphabetic script
 WORD_RE = re.compile(r'[^\W\d_]+')
@@ -85,21 +114,23 @@ WORD_RE = re.compile(r'[^\W\d_]+')
 # is not a negation
 NEGATION_WORD_RE = re.compile(r"\b[^\W\d_]+(?:'t)?\b")
 
+# Clause boundaries: commas, semicolons, colons, brackets, dashes between
+# spaces, and sentence ends (en, pt and zh punctuation). A period inside
+# a number ("2.5") is not a boundary. The zh enumeration comma 、 is not
+# a boundary, since it joins items of one clause.
+CLAUSE_SPLIT_RE = re.compile(r'[,;:()\[\]，；：（）。！？]|[.!?](?=\s|$)|\s[-–—]\s')
+
 # Score thresholds: at or above SUPPORTED is supported, at or above
 # PARTIAL is partial, below it needs review
 SUPPORTED_THRESHOLD = 0.6
 PARTIAL_THRESHOLD = 0.35
 
 
-def normalize_text(text: str) -> str:
-    """NFC-normalize and lowercase, so composed and decomposed accents match."""
-    return unicodedata.normalize('NFC', text).lower()
-
-
 def has_negation(text: str) -> bool:
     """Return True if the text contains a negation marker."""
     # Fold the typographic apostrophe so "doesn’t" matches like "doesn't"
     text = normalize_text(text).replace('’', "'")
+    text = NEGATION_EXCEPTION_RE.sub(' ', text)
     if any(ch in text for ch in CJK_NEGATIONS):
         return True
     words = NEGATION_WORD_RE.findall(text)
@@ -147,6 +178,92 @@ SCORE_COMPONENTS = (
 )
 
 
+def claim_components(claim_text: str) -> list[tuple]:
+    """Return the scored components the claim actually has, with its items."""
+    return [
+        (name, extract, claim_items, weight, threshold, note)
+        for name, extract, weight, threshold, note in SCORE_COMPONENTS
+        if (claim_items := extract(claim_text))
+    ]
+
+
+def score_quote(components: list[tuple], quote: str) -> tuple[float, list[tuple]]:
+    """Score one quote against the claim components.
+
+    Returns (score, matches), where matches holds
+    (name, match, weight, threshold, note) per component."""
+    matches = [
+        (name, len(claim_items & extract(quote)) / len(claim_items), weight, threshold, note)
+        for name, extract, claim_items, weight, threshold, note in components
+    ]
+    total_weight = sum(weight for _, _, weight, _, _ in matches)
+    score = (
+        sum(match * weight for _, match, weight, _, _ in matches) / total_weight
+        if total_weight else 0.0
+    )
+    return score, matches
+
+
+def content_items(text: str) -> set[str]:
+    """Return the items scoring compares: tokens, numbers and entities."""
+    return extract_tokens(text) | extract_numbers(text) | extract_entities(text)
+
+
+def split_clauses(text: str) -> list[str]:
+    """Split text at clause punctuation (en, pt and zh)."""
+    return [c for c in CLAUSE_SPLIT_RE.split(text) if c.strip()]
+
+
+def relevant_clauses(text: str, other: str, *, text_is_claim: bool) -> list[str]:
+    """Return the clauses of text that carry content shared with other.
+
+    A clause is relevant if, on its own, it partially matches the other
+    text (scored claim against evidence), or if it holds shared content
+    that the rest of text lacks. A negation in any other clause does not
+    touch what the claim and the evidence have in common."""
+    clauses = split_clauses(text)
+    other_items = content_items(other)
+    relevant = []
+    for i, clause in enumerate(clauses):
+        claim, quote = (clause, other) if text_is_claim else (other, clause)
+        rest = ' '.join(clauses[:i] + clauses[i + 1:])
+        shared_here = content_items(clause) & other_items
+        if (score_quote(claim_components(claim), quote)[0] >= PARTIAL_THRESHOLD
+                or shared_here - content_items(rest)):
+            relevant.append(clause)
+    return relevant
+
+
+def uses_opposite_antonyms(text_a: str, text_b: str) -> bool:
+    """Return True if the texts take opposite sides of an antonym pair:
+    one uses only one side, the other only the opposite side. A text that
+    uses both sides ("not open ... closed on holidays") takes neither."""
+    words_a = set(WORD_RE.findall(normalize_text(text_a)))
+    words_b = set(WORD_RE.findall(normalize_text(text_b)))
+    for forms_x, forms_y in ANTONYM_PAIRS:
+        a_x, a_y = bool(words_a & forms_x), bool(words_a & forms_y)
+        b_x, b_y = bool(words_b & forms_x), bool(words_b & forms_y)
+        if (a_x and not a_y and b_y and not b_x) or (a_y and not a_x and b_x and not b_y):
+            return True
+    return False
+
+
+def negation_mismatch(claim_text: str, quote: str) -> bool:
+    """Return True if claim and quote disagree on negating shared content.
+
+    Each negation and each switch to an antonym flips the meaning once, so
+    "not closed" agrees with "open" and "not open" disagrees with "not
+    closed". Without a negation, antonyms alone do not count here."""
+    claim_clauses = relevant_clauses(claim_text, quote, text_is_claim=True)
+    quote_clauses = relevant_clauses(quote, claim_text, text_is_claim=False)
+    claim_negated = any(has_negation(c) for c in claim_clauses)
+    quote_negated = any(has_negation(c) for c in quote_clauses)
+    if not (claim_negated or quote_negated):
+        return False
+    flipped = uses_opposite_antonyms(' '.join(claim_clauses), ' '.join(quote_clauses))
+    return claim_negated ^ quote_negated ^ flipped
+
+
 def compute_support_score(claim_text: str, evidence_quotes: list[str]) -> tuple[str, float, str]:
     """
     Compute support status for a claim given its linked evidence quotes.
@@ -157,31 +274,16 @@ def compute_support_score(claim_text: str, evidence_quotes: list[str]) -> tuple[
     if not evidence_quotes:
         return ('unsupported', 0.0, 'no evidence linked')
 
-    # Keep only the components the claim actually has
-    claim_components = [
-        (name, extract, claim_items, weight, threshold, note)
-        for name, extract, weight, threshold, note in SCORE_COMPONENTS
-        if (claim_items := extract(claim_text))
-    ]
-    total_weight = sum(weight for _, _, _, weight, _, _ in claim_components)
-
-    claim_negated = has_negation(claim_text)
+    components = claim_components(claim_text)
 
     best_score = -1.0  # below any real score, so the first quote sets notes
     best_notes = []
     contradicted = False
 
     for quote in evidence_quotes:
-        matches = [
-            (name, len(claim_items & extract(quote)) / len(claim_items), weight, threshold, note)
-            for name, extract, claim_items, weight, threshold, note in claim_components
-        ]
-        score = (
-            sum(match * weight for _, match, weight, _, _ in matches) / total_weight
-            if total_weight else 0.0
-        )
+        score, matches = score_quote(components, quote)
 
-        if score >= PARTIAL_THRESHOLD and has_negation(quote) != claim_negated:
+        if score >= PARTIAL_THRESHOLD and negation_mismatch(claim_text, quote):
             contradicted = True
 
         if score > best_score:

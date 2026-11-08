@@ -90,6 +90,7 @@ deep-research/
 │   ├── evidence_store.py             # Append-only evidence ledger
 │   ├── extract_claims.py             # Atomic claim extraction
 │   ├── verify_claim_support.py       # Claim-support verification
+│   ├── negation_lexicon.json         # Negation markers, exceptions and antonyms for verify_claim_support.py
 │   ├── md_to_html.py                 # Markdown to HTML converter
 │   └── verify_html.py                # HTML verification
 ├── schemas/                          # Source, evidence, claim and run manifest schemas

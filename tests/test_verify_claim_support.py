@@ -356,6 +356,127 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
         self.assertEqual(status, 'supported')
 
 
+class TestNegationOutsideSupportingPassage(unittest.TestCase):
+    """A negation counts as a mismatch only when it negates the claim's
+    content, not when it sits in a clause the claim does not depend on."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+        from verify_claim_support import compute_support_score
+        cls.score = staticmethod(compute_support_score)
+
+    def assertNoNegationMismatch(self, claim, quote):
+        status, _, notes = self.score(claim, [quote])
+        self.assertNotIn('negation mismatch', notes, f'{claim!r} vs {quote!r}')
+        self.assertEqual(status, 'supported', f'{claim!r} vs {quote!r}: {notes}')
+
+    def test_negation_in_separate_clause(self):
+        self.assertNoNegationMismatch(
+            'The museum is open on Mondays.',
+            'The museum is open on Mondays, but not on holidays.')
+        self.assertNoNegationMismatch(
+            'The museum is open on Mondays.',
+            'The museum, not the library, is open on Mondays.')
+
+    def test_zh_compounds_with_bu_are_not_negation(self):
+        # 不过 "however", 不断 "continuously", 不仅 "not only"
+        self.assertNoNegationMismatch('示例馆周一开放。', '不过示例馆周一开放。')
+        self.assertNoNegationMismatch('游客数量增加。', '游客数量不断增加。')
+        self.assertNoNegationMismatch('示例馆周一开放。', '示例馆不仅周一开放，周二也开放。')
+
+    def test_fixed_expressions_are_not_negation(self):
+        claim = 'Studies show that exercise improves sleep quality.'
+        self.assertNoNegationMismatch(
+            claim, 'No doubt, studies show that exercise improves sleep quality.')
+        self.assertNoNegationMismatch(
+            claim, 'There is no doubt that studies show exercise improves sleep quality.')
+
+    def test_negated_antonym_is_not_mismatch(self):
+        for claim, quote in (
+            ('The museum is open on Mondays.', 'The museum is not closed on Mondays.'),
+            ('The museum is closed on Mondays.', 'The museum is not open on Mondays.'),
+            ('The museum is not open on Mondays.', 'The museum is closed on Mondays.'),
+            ('O museu abre às segundas.', 'O museu não fecha às segundas.'),
+            ('O museu fecha às segundas.', 'O museu não abre às segundas.'),
+            ('O museu não fecha às segundas.', 'O museu abre às segundas.'),
+        ):
+            self.assertNoNegationMismatch(claim, quote)
+
+    def test_negated_antonyms_on_both_sides_are_mismatch(self):
+        # "not open" means closed, "not closed" means open
+        status, _, notes = self.score(
+            'The museum is not open on Mondays.', ['The museum is not closed on Mondays.'])
+        self.assertEqual(status, 'needs_review')
+        self.assertIn('negation mismatch', notes)
+
+    def test_antonym_elsewhere_does_not_cancel_negation(self):
+        # The quote uses both sides of the pair, so the antonym is not what
+        # the negation applies to.
+        for claim, quote in (
+            ('The museum is open on Mondays.',
+             'The museum is not open on Mondays and is closed on holidays.'),
+            ('O museu abre às segundas.',
+             'O museu não abre às segundas e fecha aos domingos.'),
+            ('Revenue increased in 2024.',
+             'Revenue did not increase in 2024 and costs decreased.'),
+            ('The museum is open on Mondays.',
+             'On Mondays, the museum is closed, not open.'),
+        ):
+            status, _, notes = self.score(claim, [quote])
+            self.assertEqual(status, 'needs_review', f'{claim!r} vs {quote!r}')
+            self.assertIn('negation mismatch', notes)
+
+    def test_zh_negated_claim_is_mismatch(self):
+        status, _, notes = self.score('示例馆周一不开放。', ['示例馆周一开放。'])
+        self.assertEqual(status, 'needs_review')
+        self.assertIn('negation mismatch', notes)
+
+    def test_negated_clause_holding_claim_content_is_mismatch(self):
+        # The comma moves "2024" out of the negated clause, but that clause
+        # still holds "revenue", which no other clause has.
+        status, _, notes = self.score('Revenue grew in 2024.', ['In 2024, revenue did not grow.'])
+        self.assertEqual(status, 'needs_review')
+        self.assertIn('negation mismatch', notes)
+
+
+class TestNegationLexiconFile(unittest.TestCase):
+    """Antonym pairs live in a data file: a pair added there takes effect
+    without changing the code."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        scripts = os.path.join(os.path.dirname(__file__), '..', 'scripts')
+        for name in ('verify_claim_support.py', 'negation_lexicon.json'):
+            shutil.copy(os.path.join(scripts, name), self.tmpdir)
+        self.lexicon_path = os.path.join(self.tmpdir, 'negation_lexicon.json')
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def load_copy(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'verify_claim_support_copy', os.path.join(self.tmpdir, 'verify_claim_support.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_added_antonym_pair_applies(self):
+        claim, quote = 'The patient is awake.', 'The patient is not asleep.'
+        _, _, notes = self.load_copy().compute_support_score(claim, [quote])
+        self.assertIn('negation mismatch', notes)
+
+        with open(self.lexicon_path, encoding='utf-8') as f:
+            lexicon = json.load(f)
+        lexicon['antonyms'].append([['awake'], ['asleep']])
+        with open(self.lexicon_path, 'w', encoding='utf-8') as f:
+            json.dump(lexicon, f, ensure_ascii=False)
+
+        _, _, notes = self.load_copy().compute_support_score(claim, [quote])
+        self.assertNotIn('negation mismatch', notes)
+
+
 class TestStrictBlocksWeakSupport(unittest.TestCase):
     """Regression for upstream issue #14: --strict must also fail on
     needs_review, which is what contradicting or unrelated evidence yields."""

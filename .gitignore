@@ -24,6 +24,7 @@ Thumbs.db
 # Research output (kept local)
 *.json
 !schemas/*.json
+!scripts/negation_lexicon.json
 
 # Test output
 .pytest_cache/
