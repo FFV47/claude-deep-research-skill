@@ -1,6 +1,6 @@
 # Deep Research Skill for Claude Code
 
-Enterprise-grade research engine for Claude Code. Produces citation-backed reports with source credibility scoring, multi-provider search, and automated validation.
+Enterprise-grade research skill for Claude Code. Produces citation-backed reports with source credibility scoring, multi-provider search, and automated validation.
 
 ## Installation
 
@@ -88,8 +88,7 @@ deep-research/
 │   ├── source_evaluator.py           # Source credibility scoring
 │   ├── citation_manager.py           # Citation tracking
 │   ├── md_to_html.py                 # Markdown to HTML converter
-│   ├── verify_html.py                # HTML verification
-│   └── research_engine.py            # Core orchestration engine
+│   └── verify_html.py                # HTML verification
 └── tests/
     └── fixtures/                     # Test report fixtures
 ```
@@ -98,6 +97,7 @@ deep-research/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 3.0.1 | 2026-11-08 | Removed orphan `research_engine.py`; run state lives in `run_manifest.json` (`citation_manager.py init-run`) and the sources, evidence and claims ledgers |
 | 2.3.1 | 2026-03-19 | Template/validator harmonization, structured evidence, critique loop-back, multi-persona red teaming |
 | 2.3 | 2026-03-19 | Contract harmonization, search-cli integration, dynamic year detection, disk-persisted citations, validation loops |
 | 2.2 | 2025-11-05 | Auto-continuation system for unlimited length |
