@@ -115,10 +115,15 @@ WORD_RE = re.compile(r'[^\W\d_]+')
 NEGATION_WORD_RE = re.compile(r"\b[^\W\d_]+(?:'t)?\b")
 
 # Clause boundaries: commas, semicolons, colons, brackets, dashes between
-# spaces, and sentence ends (en, pt and zh punctuation). A period inside
-# a number ("2.5") is not a boundary. The zh enumeration comma 、 is not
-# a boundary, since it joins items of one clause.
-CLAUSE_SPLIT_RE = re.compile(r'[,;:()\[\]，；：（）。！？]|[.!?](?=\s|$)|\s[-–—]\s')
+# spaces, sentence ends (en, pt and zh punctuation), and the separator
+# words in the lexicon ("but", "mas"). A period inside a number ("2.5")
+# is not a boundary. The zh enumeration comma 、 is not a boundary, since
+# it joins items of one clause.
+CLAUSE_SPLIT_RE = re.compile(
+    r'[,;:()\[\]，；：（）。！？]|[.!?](?=\s|$)|\s[-–—]\s|'
+    + '|'.join(rf'\b{re.escape(w)}\b' for w in _lexicon_words('clause_separators')),
+    re.IGNORECASE,
+)
 
 # Score thresholds: at or above SUPPORTED is supported, at or above
 # PARTIAL is partial, below it needs review
@@ -210,8 +215,11 @@ def content_items(text: str) -> set[str]:
 
 
 def split_clauses(text: str) -> list[str]:
-    """Split text at clause punctuation (en, pt and zh)."""
-    return [c for c in CLAUSE_SPLIT_RE.split(text) if c.strip()]
+    """Split text at clause punctuation (en, pt and zh) and separator words.
+
+    NFC-normalized, so a decomposed "porém" still matches, but not
+    lowercased, since entity extraction needs the original case."""
+    return [c for c in CLAUSE_SPLIT_RE.split(unicodedata.normalize('NFC', text)) if c.strip()]
 
 
 def relevant_clauses(text: str, other: str, *, text_is_claim: bool) -> list[str]:

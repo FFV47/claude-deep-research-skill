@@ -379,6 +379,14 @@ class TestNegationOutsideSupportingPassage(unittest.TestCase):
             'The museum is open on Mondays.',
             'The museum, not the library, is open on Mondays.')
 
+    def test_negation_after_conjunction_without_comma(self):
+        self.assertNoNegationMismatch(
+            'The museum is open on Mondays.',
+            'The museum is open on Mondays but not on holidays.')
+        self.assertNoNegationMismatch(
+            'O museu abre às segundas.',
+            'O museu abre às segundas mas não nos feriados.')
+
     def test_zh_compounds_with_bu_are_not_negation(self):
         # 不过 "however", 不断 "continuously", 不仅 "not only"
         self.assertNoNegationMismatch('示例馆周一开放。', '不过示例馆周一开放。')
