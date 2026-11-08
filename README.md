@@ -86,9 +86,13 @@ deep-research/
 │   ├── validate_report.py            # 9-check structure validator
 │   ├── verify_citations.py           # DOI/URL/hallucination checker
 │   ├── source_evaluator.py           # Source credibility scoring
-│   ├── citation_manager.py           # Citation tracking
+│   ├── citation_manager.py           # Source registry + run manifest (init-run)
+│   ├── evidence_store.py             # Append-only evidence ledger
+│   ├── extract_claims.py             # Atomic claim extraction
+│   ├── verify_claim_support.py       # Claim-support verification
 │   ├── md_to_html.py                 # Markdown to HTML converter
 │   └── verify_html.py                # HTML verification
+├── schemas/                          # Source, evidence, claim and run manifest schemas
 └── tests/
     └── fixtures/                     # Test report fixtures
 ```
@@ -97,7 +101,8 @@ deep-research/
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 3.0.1 | 2026-11-08 | Removed orphan `research_engine.py`; run state lives in `run_manifest.json` (`citation_manager.py init-run`) and the sources, evidence and claims ledgers |
+| 3.1 | 2026-11-08 | MCP search first, quick-mode routing, Brazilian source scoring, agent-callable CLIs, claim-support and HTML converter fixes, `research_engine.py` removed in favour of run manifest and ledgers, research state kept in the report folder |
+| 3.0 | 2026-04-11 | Evidence substrate: stable source IDs, run manifest, evidence ledger, claim ledger, claim-support verification, search-cli as primary provider |
 | 2.3.1 | 2026-03-19 | Template/validator harmonization, structured evidence, critique loop-back, multi-persona red teaming |
 | 2.3 | 2026-03-19 | Contract harmonization, search-cli integration, dynamic year detection, disk-persisted citations, validation loops |
 | 2.2 | 2025-11-05 | Auto-continuation system for unlimited length |
