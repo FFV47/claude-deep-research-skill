@@ -362,6 +362,15 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
 
+    def test_zh_negative_compounds_still_negate(self):
+        for claim, quote in (
+            ('示例馆周一开放。', '示例馆周一无法开放。'),  # 无法 "cannot"
+            ('示例馆是博物馆。', '示例馆并非博物馆。'),  # 并非 "is not"
+            ('示例馆周一开放。', '示例馆周一未必开放。'),  # 未必 "not necessarily"
+            ('示例馆与大学有关。', '示例馆与大学无关。'),  # 无关 "unrelated"
+        ):
+            self.assertNegationMismatch(claim, quote)
+
     def test_zh_unrelated_evidence(self):
         self.assertNoSharedContent('示例馆周一开放。', ['今天下雨。'])
 
@@ -450,12 +459,35 @@ class TestNegationOutsideSupportingPassage(unittest.TestCase):
         self.assertNoNegationMismatch('示例馆周一开放。', '未来示例馆周一开放。')
         self.assertNoNegationMismatch('示例馆周一开放。', '无论如何示例馆周一开放。')
 
+    def test_more_zh_compounds_are_not_negation(self):
+        for claim, quote in (
+            ('示例馆展出文物。', '示例馆展出非洲文物。'),  # 非洲 "Africa"
+            ('示例馆位于南部。', '示例馆位于南非南部。'),  # 南非 "South Africa"
+            ('示例馆是最大的博物馆。', '示例馆无疑是最大的博物馆。'),  # 无疑 "undoubtedly"
+            ('示例馆提供网络。', '示例馆提供无线网络。'),  # 无线 "wireless"
+            ('示例馆收藏文物。', '示例馆收藏无数文物。'),  # 无数 "countless"
+            ('示例馆的展览很成功。', '示例馆的展览非凡成功。'),  # 非凡 "extraordinary"
+            ('示例馆周一开放。', '除非下雨示例馆周一开放。'),  # 除非 "unless"
+        ):
+            self.assertNoNegationMismatch(claim, quote)
+
     def test_fixed_expressions_are_not_negation(self):
         claim = 'Studies show that exercise improves sleep quality.'
         self.assertNoNegationMismatch(
             claim, 'No doubt, studies show that exercise improves sleep quality.')
         self.assertNoNegationMismatch(
             claim, 'There is no doubt that studies show exercise improves sleep quality.')
+
+    def test_more_fixed_expressions_are_not_negation(self):
+        self.assertNoNegationMismatch(
+            'The director is Ana Silva.', 'The director is none other than Ana Silva.')
+        self.assertNoNegationMismatch(
+            'The museum collection is excellent.', 'The museum collection is second to none.')
+        # "não raro" means "often"
+        self.assertNoNegationMismatch(
+            'O museu abre às segundas.', 'Não raro o museu abre às segundas.')
+        self.assertNoNegationMismatch(
+            'O museu abre às segundas.', 'Nao raro o museu abre às segundas.')
 
     def test_unaccented_fixed_expressions_are_not_negation(self):
         claim = 'O museu abre às segundas.'

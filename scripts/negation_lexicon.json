@@ -7,9 +7,11 @@
   "negation_chars": ["不", "没", "未", "无", "非"],
   "exceptions": [
     "no doubt", "not only", "no matter", "not to mention",
-    "não só", "não apenas", "não somente", "não obstante",
-    "nao só", "nao apenas", "nao somente", "nao obstante",
-    "不过", "不断", "不仅", "不但", "非常", "未来", "无论"
+    "none other than", "second to none",
+    "não só", "não apenas", "não somente", "não obstante", "não raro",
+    "nao só", "nao apenas", "nao somente", "nao obstante", "nao raro",
+    "不过", "不断", "不仅", "不但", "非常", "未来", "无论",
+    "非洲", "南非", "无疑", "无线", "无数", "非凡", "除非"
   ],
   "pt_markers": [
     "o", "é", "às", "ao", "aos", "em", "dos", "das", "nas", "nos",
