@@ -1,5 +1,5 @@
 {
-  "description":"Read by verify_claim_support.py. negation_words: whole words that negate (en, pt). negation_chars: Han characters that negate (zh). exceptions: phrases or Han compounds that contain a negation marker but do not negate; they are ignored before negation is detected. clause_separators: words (en, pt) that start a new clause, like a comma does; a negation counts only in a clause that carries the claim's content. antonyms: pairs of word-form lists with opposite meanings; a negated word equals its antonym, so 'not closed' matches 'open'. List every inflected form, since words are compared exactly. Matching is case-insensitive.",
+  "description":"Read by verify_claim_support.py. negation_words: whole words that negate (en, pt). negation_chars: Han characters that negate (zh). exceptions: phrases or Han compounds that contain a negation marker but do not negate; they are ignored before negation is detected. pt_markers: words found in Portuguese text but not in English; a text with one of them, in lowercase or capitalized at the start of a sentence, is read as Portuguese. pt_contractions: negation words that, in a text read as Portuguese, are contractions and do not negate ('no' = em + o). clause_separators: words (en, pt) that start a new clause, like a comma does; a negation counts only in a clause that carries the claim's content. antonyms: pairs of word-form lists with opposite meanings; a negated word equals its antonym, so 'not closed' matches 'open'. List every inflected form, since words are compared exactly. Matching is case-insensitive.",
   "negation_words": [
     "not", "no", "never", "cannot", "cant", "none", "nobody",
     "não", "nao", "nunca", "nem", "jamais", "nenhum", "nenhuma", "ninguém"
@@ -11,6 +11,11 @@
     "nao só", "nao apenas", "nao somente", "nao obstante",
     "不过", "不断", "不仅", "不但", "非常", "未来", "无论"
   ],
+  "pt_markers": [
+    "o", "é", "às", "ao", "aos", "em", "dos", "das", "nas", "nos",
+    "uma", "que", "pelo", "pela", "não", "nao", "também", "são", "está"
+  ],
+  "pt_contractions": ["no"],
   "clause_separators": [
     "but", "although", "though", "whereas", "however",
     "mas", "porém", "embora", "contudo", "todavia", "entretanto"

@@ -112,6 +112,11 @@ def _lexicon_words(key: str) -> list[str]:
 NEGATION_WORDS = frozenset(_lexicon_words('negation_words'))
 CJK_NEGATIONS = frozenset(_lexicon_words('negation_chars'))
 
+# Words that mark a text as Portuguese, and the negation words that, in
+# such a text, are contractions ("no" = "em" + "o") and do not negate
+PT_MARKERS = frozenset(_lexicon_words('pt_markers'))
+PT_CONTRACTIONS = frozenset(_lexicon_words('pt_contractions'))
+
 # Exceptions match as whole words, except Han compounds, which have no
 # word boundaries. Longer phrases are tried first.
 NEGATION_EXCEPTION_RE = re.compile('|'.join(
@@ -128,6 +133,14 @@ ANTONYM_PAIRS = [
 
 # Extract words in any alphabetic script
 WORD_RE = re.compile(r'[^\W\d_]+')
+
+# Extract whole words with their inner apostrophes, so "o" inside
+# "O'Brien" is not read as the Portuguese article
+PT_MARKER_WORD_RE = re.compile(r"[^\W\d_]+(?:'[^\W\d_]+)*")
+
+# Text before a word that starts a sentence: nothing, or a sentence end,
+# with optional quotes or brackets in between
+SENTENCE_START_RE = re.compile(r'(?:^|[.!?])\W*$')
 
 # Extract whole words with an optional "'t" suffix, so "no" inside "NO2"
 # is not a negation
@@ -150,15 +163,35 @@ SUPPORTED_THRESHOLD = 0.6
 PARTIAL_THRESHOLD = 0.35
 
 
-def has_negation(text: str) -> bool:
-    """Return True if the text contains a negation marker."""
+def is_portuguese(text: str) -> bool:
+    """Return True if the text contains a Portuguese marker word.
+
+    A marker counts in lowercase, or capitalized at the start of a
+    sentence ("O museu"). Elsewhere a capitalized or all-caps word is a
+    name or an acronym in any language ("São Paulo", "type O", "NAS")."""
+    text = unicodedata.normalize('NFC', text).replace('’', "'")
+    for match in PT_MARKER_WORD_RE.finditer(text):
+        word = match.group()
+        if word.lower() in PT_MARKERS and (
+                word.islower()
+                or (word.istitle() and SENTENCE_START_RE.search(text[:match.start()]))):
+            return True
+    return False
+
+
+def has_negation(text: str, *, portuguese: bool) -> bool:
+    """Return True if the text contains a negation marker.
+
+    portuguese says whether the whole text the clause comes from reads as
+    Portuguese; there, the contraction "no" does not negate."""
     # Fold the typographic apostrophe so "doesn’t" matches like "doesn't"
     text = normalize_text(text).replace('’', "'")
     text = NEGATION_EXCEPTION_RE.sub(' ', text)
     if any(ch in text for ch in CJK_NEGATIONS):
         return True
+    negation_words = NEGATION_WORDS - PT_CONTRACTIONS if portuguese else NEGATION_WORDS
     words = NEGATION_WORD_RE.findall(text)
-    return any(w in NEGATION_WORDS or w.endswith("n't") for w in words)
+    return any(w in negation_words or w.endswith("n't") for w in words)
 
 
 # Three-letter function words (en, pt). Other lowercase three-letter words
@@ -322,8 +355,9 @@ def negation_mismatch(claim_text: str, quote: str) -> bool:
     closed". Without a negation, antonyms alone do not count here."""
     claim_clauses = relevant_clauses(claim_text, quote, text_is_claim=True)
     quote_clauses = relevant_clauses(quote, claim_text, text_is_claim=False)
-    claim_negated = any(has_negation(c) for c in claim_clauses)
-    quote_negated = any(has_negation(c) for c in quote_clauses)
+    claim_pt, quote_pt = is_portuguese(claim_text), is_portuguese(quote)
+    claim_negated = any(has_negation(c, portuguese=claim_pt) for c in claim_clauses)
+    quote_negated = any(has_negation(c, portuguese=quote_pt) for c in quote_clauses)
     if not (claim_negated or quote_negated):
         return False
     flipped = uses_opposite_antonyms(' '.join(claim_clauses), ' '.join(quote_clauses))

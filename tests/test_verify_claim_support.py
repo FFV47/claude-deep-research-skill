@@ -324,13 +324,34 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
              'Nenhum museu da cidade abre às segundas.'),
             ('A escola da cidade abre aos domingos.',
              'Nenhuma escola da cidade abre aos domingos.'),
-            # Avoids the pt contraction "no" ("in the"): the lexicon reads it
-            # as en "no", so both sides would count as negated and cancel out.
-            ('O público visita o museu às segundas.',
-             'Ninguém do público visita o museu às segundas.'),
+            ('O público entra no museu às segundas.',
+             'Ninguém do público entra no museu às segundas.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
+
+    def test_pt_contraction_no_does_not_cancel_negation(self):
+        self.assertNegationMismatch('O museu fica no centro.', 'O museu não fica no centro.')
+        self.assertNegationMismatch('O museu não fica no centro.', 'O museu fica no centro.')
+
+    def test_en_no_still_negates_next_to_pt_lookalike_words(self):
+        for affirmed, negated in (
+            ('The company reports revenue growth in São Paulo.',
+             'The company reports no revenue growth in São Paulo.'),
+            ('Blood type O donors face restrictions in the program.',
+             'Blood type O donors face no restrictions in the program.'),
+            ('The device supports NAS storage with encryption.',
+             'The device supports NAS storage with no encryption.'),
+            ('The restaurant serves dishes à la carte with surcharges.',
+             'The restaurant serves dishes à la carte with no surcharges.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
+    def test_pt_contraction_no_is_not_negation(self):
+        _, _, notes = self.score(
+            'O museu fica perto do centro da cidade.', ['O museu fica no centro da cidade.'])
+        self.assertNotIn('negation mismatch', notes)
 
     def test_zh_more_negation_chars_both_ways(self):
         for affirmed, negated in (
