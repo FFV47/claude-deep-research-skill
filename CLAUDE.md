@@ -2,7 +2,15 @@
 
 ## Tickets
 
-Os tickets ficam em `.scratch/<tema>/issues/NN-<slug>.md`. Cada um tem uma linha `**Status:**` e uma lista de critérios de aceitação em checkboxes (`- [ ]`).
+Os tickets abertos ficam em `.scratch/<tema>/issues/NN-<slug>.md`. Os concluídos ficam em `.scratch/closed/NN-<slug>.md`. Cada um tem uma linha `**Status:**` e uma lista de critérios de aceitação em checkboxes (`- [ ]`).
+
+### Numeração
+
+O número `NN` identifica o ticket em todo o `.scratch`, não só dentro do tema. Dois tickets nunca têm o mesmo número, mesmo em temas diferentes.
+
+- **Ticket novo:** use o maior número existente em `.scratch` (abertos e `closed/`) mais um, com dois dígitos. O número aparece no nome do arquivo e no título (`# NN: ...`).
+- **Referências:** cite outros tickets só pelo número (`ticket 03`, `**Blocked by:** 03 (...)`), sem o nome do tema.
+- **Não renumere.** O número de um ticket não muda depois de criado, nem quando ele é fechado e movido.
 
 ### Fechar um ticket
 
@@ -15,6 +23,7 @@ Quando o usuário disser que um ticket está fechado (fechado, concluído, done,
    - um commit: `**Status:** done (commit \`6181bb5\`)`
    - vários: `**Status:** done (commits \`c48243e\`, \`617cccd\`)`
 
-   Se algum critério não puder ser confirmado, deixe-o `- [ ]`, mantenha o status anterior e diga ao usuário qual critério ficou pendente e por quê. Ele decide se o ticket fecha mesmo assim.
+   Se algum critério não puder ser confirmado, deixe-o `- [ ]`, mantenha o status anterior e diga ao usuário qual critério ficou pendente e por quê. Ele decide se o ticket fecha mesmo assim. Enquanto ele não decidir, o ticket fica onde está.
+5. **Mova o ticket para `.scratch/closed/`.** Mantenha o nome do arquivo, com o mesmo número. Se a pasta `issues/` do tema ficar vazia, apague-a junto com a pasta do tema.
 
-Altere só a linha de status e os checkboxes. O resto do ticket fica como está.
+No conteúdo do arquivo, altere só a linha de status e os checkboxes. O resto do ticket fica como está.
