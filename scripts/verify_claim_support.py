@@ -168,19 +168,33 @@ SUPPORTED_THRESHOLD = 0.6
 PARTIAL_THRESHOLD = 0.35
 
 
+def has_en_marker_word(text: str) -> bool:
+    """Return True if the text contains an English marker word, in any case."""
+    return any(w.lower() in EN_MARKERS for w in WORD_RE.findall(text))
+
+
 def is_portuguese(text: str) -> bool:
     """Return True if the text contains a Portuguese marker word.
 
     A marker counts in lowercase, or capitalized at the start of a
     sentence ("O museu"). Elsewhere a capitalized or all-caps word is a
-    name or an acronym in any language ("São Paulo", "type O", "NAS")."""
+    name or an acronym in any language ("São Paulo", "type O", "NAS").
+
+    At the start of a sentence, a marker followed by a capitalized word
+    may open a name ("Uma Thurman", "O Globo"). It does not count if the
+    text has an English marker word."""
     text = unicodedata.normalize('NFC', text).replace('’', "'")
     for match in PT_MARKER_WORD_RE.finditer(text):
         word = match.group()
-        if word.lower() in PT_MARKERS and (
-                word.islower()
-                or (word.istitle() and SENTENCE_START_RE.search(text[:match.start()]))):
+        if word.lower() not in PT_MARKERS:
+            continue
+        if word.islower():
             return True
+        if word.istitle() and SENTENCE_START_RE.search(text[:match.start()]):
+            next_word = PT_MARKER_WORD_RE.search(text, match.end())
+            opens_name = next_word is not None and next_word.group()[0].isupper()
+            if not (opens_name and has_en_marker_word(text)):
+                return True
     return False
 
 
@@ -194,7 +208,7 @@ def has_pt_letter_word(clause: str, text: str) -> bool:
     clause ("Sales showed no growth (relatório anual).") leaves the
     English "no" negating. Capitalized words do not count, since names
     keep their accents in any language ("São Paulo")."""
-    if any(w.lower() in EN_MARKERS for w in WORD_RE.findall(text)):
+    if has_en_marker_word(text):
         return False
     return any(w.islower() and PT_LETTERS & set(w)
                for w in WORD_RE.findall(unicodedata.normalize('NFC', clause)))

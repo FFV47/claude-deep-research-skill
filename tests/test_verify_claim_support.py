@@ -353,6 +353,26 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
 
+    def test_en_no_still_negates_after_sentence_initial_pt_lookalike_name(self):
+        for affirmed, negated in (
+            ('Uma Thurman received an award for the role.',
+             'Uma Thurman received no award for the role.'),
+            ('O Globo reported growth in the region.',
+             'O Globo reported no growth in the region.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
+    def test_pt_contraction_no_does_not_cancel_negation_next_to_en_lookalike_words(self):
+        for affirmed, negated in (
+            ('O evento será on-line no sábado.', 'O evento não será on-line no sábado.'),
+            ('O fiscal faz a vistoria in loco no sábado.',
+             'O fiscal não faz a vistoria in loco no sábado.'),
+            ('O museu fica no centro do The Mall.', 'O museu não fica no centro do The Mall.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
     def test_en_no_still_negates_against_pt_annotated_quote(self):
         self.assertNegationMismatch('Sales showed no growth.', 'Sales showed growth (relatório anual).')
         self.assertNegationMismatch('Sales showed growth.', 'Sales showed no growth (relatório anual).')
