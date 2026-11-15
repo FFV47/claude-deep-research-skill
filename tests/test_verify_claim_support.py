@@ -344,13 +344,31 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
              'The device supports NAS storage with no encryption.'),
             ('The restaurant serves dishes à la carte with surcharges.',
              'The restaurant serves dishes à la carte with no surcharges.'),
+            ('The café charges entry fees.', 'The café charges no entry fees.'),
+            ('Sales showed growth.', 'Sales showed no growth.'),
+            ('Our café showed losses.', 'Our café showed no losses.'),
+            ('Clients reported déjà vu effects.', 'Clients reported no déjà vu effects.'),
+            ('Sales showed growth per résumé data.', 'Sales showed no growth per résumé data.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
 
+    def test_en_no_still_negates_against_pt_annotated_quote(self):
+        self.assertNegationMismatch('Sales showed no growth.', 'Sales showed growth (relatório anual).')
+        self.assertNegationMismatch('Sales showed growth.', 'Sales showed no growth (relatório anual).')
+
+    def test_pt_text_without_marker_word_does_not_cancel_negation(self):
+        self.assertNegationMismatch('Fica no centro histórico.', 'Não fica no centro histórico.')
+        self.assertNegationMismatch('Não fica no centro histórico.', 'Fica no centro histórico.')
+
     def test_pt_contraction_no_is_not_negation(self):
         _, _, notes = self.score(
             'O museu fica perto do centro da cidade.', ['O museu fica no centro da cidade.'])
+        self.assertNotIn('negation mismatch', notes)
+
+    def test_pt_contraction_no_is_not_negation_without_marker_word(self):
+        _, _, notes = self.score(
+            'Fica perto do centro histórico.', ['Fica no centro histórico.'])
         self.assertNotIn('negation mismatch', notes)
 
     def test_zh_more_negation_chars_both_ways(self):

@@ -117,6 +117,11 @@ CJK_NEGATIONS = frozenset(_lexicon_words('negation_chars'))
 PT_MARKERS = frozenset(_lexicon_words('pt_markers'))
 PT_CONTRACTIONS = frozenset(_lexicon_words('pt_contractions'))
 
+# Words that mark a text as English, and letters that mark a word as
+# Portuguese, for texts without a Portuguese marker word
+EN_MARKERS = frozenset(_lexicon_words('en_markers'))
+PT_LETTERS = frozenset(_lexicon_words('pt_letters'))
+
 # Exceptions match as whole words, except Han compounds, which have no
 # word boundaries. Longer phrases are tried first.
 NEGATION_EXCEPTION_RE = re.compile('|'.join(
@@ -179,11 +184,28 @@ def is_portuguese(text: str) -> bool:
     return False
 
 
+def has_pt_letter_word(clause: str, text: str) -> bool:
+    """Return True if the clause has a lowercase word with a Portuguese
+    letter ("histórico") and the text it comes from has no English marker
+    word, in any case.
+
+    This reads a text without a Portuguese marker word as Portuguese. The
+    word must sit in the clause itself, so a Portuguese note in another
+    clause ("Sales showed no growth (relatório anual).") leaves the
+    English "no" negating. Capitalized words do not count, since names
+    keep their accents in any language ("São Paulo")."""
+    if any(w.lower() in EN_MARKERS for w in WORD_RE.findall(text)):
+        return False
+    return any(w.islower() and PT_LETTERS & set(w)
+               for w in WORD_RE.findall(unicodedata.normalize('NFC', clause)))
+
+
 def has_negation(text: str, *, portuguese: bool) -> bool:
     """Return True if the text contains a negation marker.
 
-    portuguese says whether the whole text the clause comes from reads as
-    Portuguese; there, the contraction "no" does not negate."""
+    portuguese says whether the clause reads as Portuguese, from the whole
+    text it comes from or from its own words; there, the contraction "no"
+    does not negate."""
     # Fold the typographic apostrophe so "doesn’t" matches like "doesn't"
     text = normalize_text(text).replace('’', "'")
     text = NEGATION_EXCEPTION_RE.sub(' ', text)
@@ -356,8 +378,12 @@ def negation_mismatch(claim_text: str, quote: str) -> bool:
     claim_clauses = relevant_clauses(claim_text, quote, text_is_claim=True)
     quote_clauses = relevant_clauses(quote, claim_text, text_is_claim=False)
     claim_pt, quote_pt = is_portuguese(claim_text), is_portuguese(quote)
-    claim_negated = any(has_negation(c, portuguese=claim_pt) for c in claim_clauses)
-    quote_negated = any(has_negation(c, portuguese=quote_pt) for c in quote_clauses)
+    claim_negated = any(
+        has_negation(c, portuguese=claim_pt or has_pt_letter_word(c, claim_text))
+        for c in claim_clauses)
+    quote_negated = any(
+        has_negation(c, portuguese=quote_pt or has_pt_letter_word(c, quote))
+        for c in quote_clauses)
     if not (claim_negated or quote_negated):
         return False
     flipped = uses_opposite_antonyms(' '.join(claim_clauses), ' '.join(quote_clauses))
