@@ -173,16 +173,20 @@ def has_en_marker_word(text: str) -> bool:
     return any(w.lower() in EN_MARKERS for w in WORD_RE.findall(text))
 
 
-def is_portuguese(text: str) -> bool:
-    """Return True if the text contains a Portuguese marker word.
+def is_portuguese(text: str, other: str = '') -> bool:
+    """Return True if the text contains a Portuguese marker word that
+    counts, given other, the text it is compared with.
 
     A marker counts in lowercase, or capitalized at the start of a
     sentence ("O museu"). Elsewhere a capitalized or all-caps word is a
     name or an acronym in any language ("São Paulo", "type O", "NAS").
 
     At the start of a sentence, a marker followed by a capitalized word
-    may open a name ("Uma Thurman", "O Globo"). It does not count if the
-    text has an English marker word."""
+    may open a name ("Uma Thurman", "O Globo"). It counts only if the text
+    has no English marker word and other reads as Portuguese on its own.
+    So "O Brasil fica no centro" reads as Portuguese against "O Brasil
+    não fica no centro", and "Uma Thurman won no Oscar" reads as English
+    against "Uma Thurman won Oscar"."""
     text = unicodedata.normalize('NFC', text).replace('’', "'")
     for match in PT_MARKER_WORD_RE.finditer(text):
         word = match.group()
@@ -193,7 +197,7 @@ def is_portuguese(text: str) -> bool:
         if word.istitle() and SENTENCE_START_RE.search(text[:match.start()]):
             next_word = PT_MARKER_WORD_RE.search(text, match.end())
             opens_name = next_word is not None and next_word.group()[0].isupper()
-            if not (opens_name and has_en_marker_word(text)):
+            if not opens_name or (not has_en_marker_word(text) and is_portuguese(other)):
                 return True
     return False
 
@@ -391,7 +395,7 @@ def negation_mismatch(claim_text: str, quote: str) -> bool:
     closed". Without a negation, antonyms alone do not count here."""
     claim_clauses = relevant_clauses(claim_text, quote, text_is_claim=True)
     quote_clauses = relevant_clauses(quote, claim_text, text_is_claim=False)
-    claim_pt, quote_pt = is_portuguese(claim_text), is_portuguese(quote)
+    claim_pt, quote_pt = is_portuguese(claim_text, quote), is_portuguese(quote, claim_text)
     claim_negated = any(
         has_negation(c, portuguese=claim_pt or has_pt_letter_word(c, claim_text))
         for c in claim_clauses)

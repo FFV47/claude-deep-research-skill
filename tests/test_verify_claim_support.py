@@ -363,6 +363,24 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
 
+    def test_en_no_still_negates_after_sentence_initial_pt_lookalike_name_without_en_marker(self):
+        for affirmed, negated in (
+            ('Uma Thurman won Oscar.', 'Uma Thurman won no Oscar.'),
+            ('O Globo cited sources.', 'O Globo cited no sources.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
+    def test_pt_contraction_no_does_not_cancel_negation_after_sentence_initial_name(self):
+        for affirmed, negated in (
+            ('O Brasil fica no centro.', 'O Brasil não fica no centro.'),
+            ('O Brasil fica no centro.', 'O Brasil nunca fica no centro.'),
+            ('O Rio fica no Sudeste.', 'O Rio nunca fica no Sudeste.'),
+            ('O Brasil fica no centro.', 'O Brasil nunca fica perto do centro.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
     def test_pt_contraction_no_does_not_cancel_negation_next_to_en_lookalike_words(self):
         for affirmed, negated in (
             ('O evento será on-line no sábado.', 'O evento não será on-line no sábado.'),
