@@ -3,7 +3,15 @@
   "title": "Source",
   "description": "A research source with stable identity. source_id = sha256(canonical_locator)[:16].",
   "type": "object",
-  "required": ["source_id", "canonical_locator", "raw_url", "title", "source_type", "metadata_status", "registered_at"],
+  "required": [
+    "source_id",
+    "canonical_locator",
+    "raw_url",
+    "title",
+    "source_type",
+    "metadata_status",
+    "registered_at"
+  ],
   "properties": {
     "source_id": {
       "type": "string",

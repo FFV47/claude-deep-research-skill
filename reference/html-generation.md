@@ -15,9 +15,11 @@
 ## Generation Steps
 
 ### Step 1: Template
+
 The script loads `./templates/mckinsey_report_template.html` by default (`--template [path]` overrides it). No need to read it into context.
 
 ### Step 2: Extract Key Metrics
+
 Extract 3-4 key quantitative findings for dashboard display at top.
 
 ### Step 3: Build the HTML Report (one call)
@@ -31,18 +33,19 @@ python scripts/md_to_html.py [markdown_report_path] --out [html_path] \
 
 The script converts the markdown, fills every template placeholder, writes the file and prints its path. Do not paste the HTML into context or write it by hand.
 
-| Placeholder | Filled from |
-|-------------|-------------|
-| {{TITLE}} | `--title` |
-| {{DATE}} | `--date` (default: today, YYYY-MM-DD) |
-| {{SOURCE_COUNT}} | `--source-count` |
-| {{METRICS_DASHBOARD}} | `--metrics` (JSON object from step 2) |
-| {{CONTENT}} | All sections except Bibliography (Appendix included) |
-| {{BIBLIOGRAPHY}} | Bibliography section, one entry per `[N]` line |
+| Placeholder           | Filled from                                          |
+| --------------------- | ---------------------------------------------------- |
+| {{TITLE}}             | `--title`                                            |
+| {{DATE}}              | `--date` (default: today, YYYY-MM-DD)                |
+| {{SOURCE_COUNT}}      | `--source-count`                                     |
+| {{METRICS_DASHBOARD}} | `--metrics` (JSON object from step 2)                |
+| {{CONTENT}}           | All sections except Bibliography (Appendix included) |
+| {{BIBLIOGRAPHY}}      | Bibliography section, one entry per `[N]` line       |
 
 Without `--out`, the script prints both HTML parts in full to stdout (for inspection only).
 
 **Script handles all conversion:**
+
 - Headers: `##` -> `<div class="section"><h2 class="section-title">`
 - Headers: `###` -> `<h3 class="subsection-title">`
 - Lists: Markdown bullets -> `<ul><li>` with nesting
@@ -54,8 +57,10 @@ Without `--out`, the script prints both HTML parts in full to stdout (for inspec
 ### Step 4: Add Citation Tooltips (Optional)
 
 Attribution Gradients - in the HTML file written by step 3, wrap each [N] citation:
+
 ```html
-<span class="citation">[N]
+<span class="citation"
+  >[N]
   <span class="citation-tooltip">
     <div class="tooltip-title">[Source Title]</div>
     <div class="tooltip-source">[Author/Publisher]</div>
@@ -66,6 +71,7 @@ Attribution Gradients - in the HTML file written by step 3, wrap each [N] citati
   </span>
 </span>
 ```
+
 NOTE: This step is optional for speed. Basic [N] citations are sufficient.
 
 ### Step 5: Verify HTML
@@ -73,6 +79,7 @@ NOTE: This step is optional for speed. Basic [N] citations are sufficient.
 ```bash
 python scripts/verify_html.py --html [html_path] --md [md_path]
 ```
+
 - Pass: Done. Do not open the file; report its path to the user
 - Fail: Fix errors and re-run
 

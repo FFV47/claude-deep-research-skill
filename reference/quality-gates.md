@@ -9,6 +9,7 @@ python scripts/verify_citations.py --report [path]
 ```
 
 **Checks:**
+
 - DOI resolution (verifies citation exists)
 - Title/year matching (detects mismatched metadata)
 - Flags suspicious entries (recent year without DOI, no URL, failed verification)
@@ -22,6 +23,7 @@ python scripts/validate_report.py --report [path]
 ```
 
 **9 automated checks:**
+
 1. Executive summary length (200-400 words)
 2. Required sections present
 3. Citations formatted [1], [2], [3]
@@ -32,6 +34,7 @@ python scripts/validate_report.py --report [path]
 8. No broken internal links
 
 **Failure handling:**
+
 - Attempt 1: Auto-fix formatting/links
 - Attempt 2: Manual review + correction
 - After 2 failures: STOP, report issues, ask user
@@ -57,6 +60,7 @@ python scripts/validate_report.py --report [path]
 ### Quality Check (Apply to EVERY Section)
 
 Before considering section complete:
+
 - [ ] **Paragraph count:** >=3 paragraphs for major sections
 - [ ] **Prose-first:** <20% bullets (>=80% flowing prose)
 - [ ] **No placeholders:** Zero "Content continues", "Due to length", "[Sections X-Y]"
@@ -81,11 +85,13 @@ Before considering section complete:
 **Report is UNUSABLE without complete bibliography.**
 
 **MUST:**
+
 - Include EVERY citation [N] used in report body
 - Format: [N] Author/Org (Year). "Title". Publication. URL (Retrieved: Date)
 - Each entry on its own line, complete
 
 **NEVER:**
+
 - Placeholders: "[8-75] Additional citations", "...continue...", "etc."
 - Ranges: "[3-50]" instead of individual entries
 - Truncation: Stop at 10 when 30 cited
@@ -96,23 +102,23 @@ Before considering section complete:
 
 ### Core Principles
 
-| Principle | Description |
-|-----------|-------------|
-| Narrative-driven | Flowing prose, story with beginning/middle/end |
-| Precision | Every word deliberately chosen |
-| Economy | No fluff, eliminate fancy grammar |
-| Clarity | Exact numbers embedded in sentences |
-| Directness | State findings without embellishment |
-| High signal-to-noise | Dense information, respect reader time |
+| Principle            | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| Narrative-driven     | Flowing prose, story with beginning/middle/end |
+| Precision            | Every word deliberately chosen                 |
+| Economy              | No fluff, eliminate fancy grammar              |
+| Clarity              | Exact numbers embedded in sentences            |
+| Directness           | State findings without embellishment           |
+| High signal-to-noise | Dense information, respect reader time         |
 
 ### Precision Examples
 
-| Bad | Good |
-|-----|------|
-| "significantly improved outcomes" | "reduced mortality 23% (p<0.01)" |
-| "several studies suggest" | "5 RCTs (n=1,847) show" |
-| "potentially beneficial" | "increased biomarker X by 15%" |
-| "* Market: $2.4B" | "The market reached $2.4 billion in 2023 [1]." |
+| Bad                               | Good                                           |
+| --------------------------------- | ---------------------------------------------- |
+| "significantly improved outcomes" | "reduced mortality 23% (p<0.01)"               |
+| "several studies suggest"         | "5 RCTs (n=1,847) show"                        |
+| "potentially beneficial"          | "increased biomarker X by 15%"                 |
+| "* Market: $2.4B"                 | "The market reached $2.4 billion in 2023 [1]." |
 
 ---
 
@@ -121,22 +127,27 @@ Before considering section complete:
 **Immediate citation:** Every factual claim followed by [N] in same sentence.
 
 **Quote sources directly:**
+
 - "According to [1]..."
 - "[1] reports..."
 
 **Distinguish fact from synthesis:**
+
 - GOOD: "Mortality decreased 23% (p<0.01) in the treatment group [1]."
 - BAD: "Studies show mortality improved significantly."
 
 **No vague attributions:**
+
 - NEVER: "Research suggests...", "Studies show...", "Experts believe..."
 - ALWAYS: "Smith et al. (2024) found..." [1]
 
 **Label speculation:**
+
 - GOOD: "This suggests a potential mechanism..."
 - BAD: "The mechanism is..." (presented as fact)
 
 **Admit uncertainty:**
+
 - GOOD: "No sources found addressing X directly."
 - BAD: Fabricating a citation
 
@@ -156,6 +167,7 @@ Before considering section complete:
 ## Report Quality Standards
 
 **Every report must have:**
+
 - 10+ sources (document if fewer)
 - 3+ sources per major claim
 - Executive summary 200-400 words
@@ -172,16 +184,19 @@ Before considering section complete:
 ## Error Handling
 
 **Stop immediately if:**
+
 - 2 validation failures on same error
 - <5 sources after exhaustive search
 - User interrupts/changes scope
 
 **Graceful degradation:**
+
 - 5-10 sources: Note in limitations, extra verification
 - Time constraint: Package partial, document gaps
 - High-priority critique: Address immediately
 
 **Error format:**
+
 ```
 Issue: [Description]
 Context: [What was attempted]

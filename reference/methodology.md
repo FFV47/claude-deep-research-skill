@@ -11,6 +11,7 @@ This document contains the detailed methodology for conducting deep research. Th
 **Objective:** Define research boundaries and success criteria
 
 **Activities:**
+
 1. Decompose the question into core components
 2. Identify stakeholder perspectives
 3. Define scope boundaries (what's in/out)
@@ -28,6 +29,7 @@ This document contains the detailed methodology for conducting deep research. Th
 **Objective:** Create an intelligent research roadmap
 
 **Activities:**
+
 1. Identify primary and secondary sources
 2. Map knowledge dependencies (what must be understood first)
 3. Create search query strategy with variants
@@ -72,6 +74,7 @@ Use the returned year for all date-filtered queries and recency checks. Do NOT a
 **CRITICAL: Use correct tool and parameters to avoid errors**
 
 **Primary: search tools from connected MCP servers (always check first)**
+
 - Before the first search, check which MCP tools this session exposes. MCP tools are named `mcp__<server>__<tool>`; search tools usually have `search`, `research`, `extract`, `fetch`, `scrape` or `crawl` in the name (e.g. Tavily, Exa, Jina, Firecrawl or Brave servers)
 - If only tool names are listed (deferred schemas), load the schemas before calling them (in Claude Code: `ToolSearch` with `select:<tool_name>`)
 - Read each tool's parameter schema before the first call; parameter names differ between servers
@@ -79,6 +82,7 @@ Use the returned year for all date-filtered queries and recency checks. Do NOT a
 - If several search MCPs are connected, spread the query angles across them for source diversity
 
 **Fallback: native WebSearch / WebFetch**
+
 - Use only when no search MCP is connected, or when the MCP tool fails, is rate-limited, or lacks a needed feature (e.g. domain filters)
 - WebSearch parameters: `query` (required), optional `allowed_domains`, `blocked_domains`
 
@@ -87,18 +91,28 @@ Use the returned year for all date-filtered queries and recency checks. Do NOT a
 **Step 2: Spawn parallel deep-dive agents**
 
 Use Task tool with general-purpose agents (3-5 agents) for:
+
 - Academic paper analysis (PDFs, detailed extraction)
 - Documentation deep dives (technical specs, API docs)
 - Repository analysis (code examples, implementations)
 - Specialized domain research (requires multi-step investigation)
 
 **Sub-agent output format:** Require all sub-agents to return structured evidence, not free text:
+
 ```json
-{"claim": "specific claim text", "evidence_quote": "exact quote from source", "source_url": "https://...", "source_title": "...", "confidence": 0.85}
+{
+  "claim": "specific claim text",
+  "evidence_quote": "exact quote from source",
+  "source_url": "https://...",
+  "source_title": "...",
+  "confidence": 0.85
+}
 ```
+
 This prevents synthesis fatigue when merging results from 3-5 agents.
 
 **Evidence persistence (v3.0):** After each retrieval batch, persist evidence immediately:
+
 ```bash
 # Register the source first (returns stable source_id)
 python scripts/citation_manager.py register-source --json '{"raw_url": "...", "title": "..."}' --dir [folder]
@@ -106,9 +120,11 @@ python scripts/citation_manager.py register-source --json '{"raw_url": "...", "t
 # Then persist each evidence span from that source
 python scripts/evidence_store.py add --json '{"source_id": "...", "quote": "exact text", "evidence_type": "direct_quote", "locator": "page 5"}' --dir [folder]
 ```
+
 Evidence must not live only in model context — it must be persisted to `evidence.jsonl` before synthesis begins. This ensures continuation agents and claim-support verification can access the full evidence trail.
 
 **Example parallel execution (MCP search tools; server and tool names are placeholders):**
+
 ```
 [Single message with multiple tool calls]
 - mcp__<search_server>__<search_tool>(query="quantum computing 2026 state of the art", ...)
@@ -120,9 +136,11 @@ Evidence must not live only in model context — it must be persisted to `eviden
 - Task(subagent_type="general-purpose", description="Industry analysis", prompt="Analyze quantum computing industry reports and market data, identify commercial applications")
 - Task(subagent_type="general-purpose", description="Technical challenges", prompt="Extract technical limitations and challenges from quantum computing research")
 ```
+
 `...` stands for the options in that tool's own schema (result count, date filter, domain filter).
 
 **Fallback example (no search MCP connected):**
+
 ```
 [Single message with multiple tool calls]
 - WebSearch(query="quantum computing 2026 state of the art")
@@ -134,6 +152,7 @@ Evidence must not live only in model context — it must be persisted to `eviden
 **Step 3: Collect and organize results**
 
 As results arrive:
+
 1. Extract key passages with source metadata (title, URL, date, credibility)
 2. Track information gaps that emerge
 3. Follow promising tangents with additional targeted searches
@@ -145,12 +164,14 @@ As results arrive:
 **Adaptive completion based on quality threshold:**
 
 **Quality gate:** Proceed to Phase 4 when FIRST threshold reached:
+
 - **Quick mode:** 10+ sources with avg credibility >60/100 OR 2 minutes elapsed
 - **Standard mode:** 15+ sources with avg credibility >60/100 OR 5 minutes elapsed
 - **Deep mode:** 25+ sources with avg credibility >70/100 OR 10 minutes elapsed
 - **UltraDeep mode:** 30+ sources with avg credibility >75/100 OR 15 minutes elapsed
 
 **Continue background searches:**
+
 - If threshold reached early, continue remaining parallel searches in background
 - Additional sources used in Phase 5 (SYNTHESIZE) for depth and diversity
 - Allows fast progression without sacrificing thoroughness
@@ -158,18 +179,21 @@ As results arrive:
 ### Quality Standards
 
 **Source diversity requirements:**
+
 - Minimum 3 source types (academic, industry, news, technical docs)
 - Temporal diversity (mix of recent 12-18 months + foundational older sources)
 - Perspective diversity (proponents + critics + neutral analysis)
 - Geographic diversity (not just US sources)
 
 **Credibility tracking:**
+
 - Score each source 0-100 using source_evaluator.py (batch all sources in one call; keys: url, title, publication_date, author, content):
   `python scripts/source_evaluator.py --json '[{"url": "...", "title": "...", "publication_date": "YYYY-MM-DD"}]'`
 - Flag low-credibility sources (<40) for additional verification
 - Prioritize high-credibility sources (>80) for core claims
 
 **Techniques:**
+
 - Use search tools from connected MCP servers first (primary)
 - Fall back to native WebSearch if no search MCP is connected, or if it fails or is rate-limited
 - For deep dives into specific sources, use the MCP's extract/fetch tool; fall back to WebFetch
@@ -186,6 +210,7 @@ As results arrive:
 **Objective:** Validate information across multiple independent sources
 
 **Activities:**
+
 1. Identify claims requiring verification
 2. Cross-reference facts across 3+ sources
 3. Flag contradictions or uncertainties
@@ -194,6 +219,7 @@ As results arrive:
 6. Document verification status per claim
 
 **Quality Standards:**
+
 - Core claims must have 3+ independent sources
 - Flag any single-source information
 - Note recency of information
@@ -210,6 +236,7 @@ As results arrive:
 **Problem Solved:** Prevents "locked-in" research when evidence points to different conclusions or uncovers more important angles than initially planned.
 
 **When to Execute:**
+
 - **Standard/Deep/UltraDeep modes only** (Quick mode skips this)
 - After Phase 4 (TRIANGULATE) completes
 - Before Phase 5 (SYNTHESIZE)
@@ -245,6 +272,7 @@ As results arrive:
    - Adjust scope boundaries based on what's actually discoverable
 
    **Example adaptation:**
+
    ```
    Original outline:
    1. Introduction
@@ -277,6 +305,7 @@ As results arrive:
    - What additional research was conducted (if any)
 
 **Quality Standards:**
+
 - Adaptation must be evidence-driven (cite specific sources that prompted change)
 - No more than 50% outline restructuring (if more needed, scope was severely mis scoped)
 - Retain original research question core (don't drift into different topic entirely)
@@ -285,6 +314,7 @@ As results arrive:
 **Output:** Refined outline that accurately reflects evidence landscape, ready for synthesis
 
 **Anti-Pattern Warning:**
+
 - ❌ DON'T adapt outline based on speculation or "what would be interesting"
 - ❌ DON'T add sections without supporting evidence already in hand
 - ❌ DON'T completely abandon original research question
@@ -299,6 +329,7 @@ As results arrive:
 **Objective:** Connect insights and generate novel understanding
 
 **Activities:**
+
 1. Identify patterns across sources
 2. Map relationships between concepts
 3. Generate insights beyond source material
@@ -317,6 +348,7 @@ As results arrive:
 **Objective:** Rigorously evaluate research quality
 
 **Activities:**
+
 1. Review for logical consistency
 2. Check citation completeness
 3. Identify gaps or weaknesses
@@ -325,6 +357,7 @@ As results arrive:
 6. Test alternative interpretations
 
 **Red Team Questions:**
+
 - What's missing?
 - What could be wrong?
 - What alternative explanations exist?
@@ -333,6 +366,7 @@ As results arrive:
 
 **Persona-Based Critique (Deep/UltraDeep only):**
 Simulate 2-3 specific critic personas relevant to the topic:
+
 - "Skeptical Practitioner" — Would someone doing this daily trust these findings?
 - "Adversarial Reviewer" — What would a peer reviewer reject?
 - "Implementation Engineer" — Can these recommendations actually be executed?
@@ -349,6 +383,7 @@ If critique identifies a critical knowledge gap (not just a writing issue), retu
 **Objective:** Address gaps and strengthen weak areas
 
 **Activities:**
+
 1. Conduct additional research for gaps
 2. Strengthen weak arguments
 3. Add missing perspectives
@@ -365,6 +400,7 @@ If critique identifies a critical knowledge gap (not just a writing issue), retu
 **Objective:** Deliver professional, actionable research
 
 **Activities:**
+
 1. Structure report with clear hierarchy
 2. Write executive summary
 3. Develop detailed sections
@@ -381,6 +417,7 @@ If critique identifies a critical knowledge gap (not just a writing issue), retu
 ### Graph-of-Thoughts Reasoning
 
 Rather than linear thinking, branch into multiple reasoning paths:
+
 - Explore alternative framings in parallel
 - Pursue tangential leads that might be relevant
 - Merge insights from different branches
@@ -389,6 +426,7 @@ Rather than linear thinking, branch into multiple reasoning paths:
 ### Parallel Agent Deployment
 
 Use Task tool to spawn sub-agents for:
+
 - Parallel source retrieval
 - Independent verification paths
 - Competing hypothesis evaluation
@@ -397,6 +435,7 @@ Use Task tool to spawn sub-agents for:
 ### Adaptive Depth Control
 
 Automatically adjust research depth based on:
+
 - Information complexity
 - Source availability
 - Time constraints
@@ -405,6 +444,7 @@ Automatically adjust research depth based on:
 ### Citation Intelligence
 
 Smart citation management:
+
 - Track provenance of every claim
 - Link to original sources
 - Assess source credibility

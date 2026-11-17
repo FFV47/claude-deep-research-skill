@@ -19,17 +19,17 @@ WeasyPrint converts HTML/CSS to PDF. These guidelines ensure professional output
 .diagram,
 .metrics-row,
 table {
-    page-break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 /* Tables are especially problematic - always prevent breaks */
 table {
-    page-break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 /* Two-column layouts */
 .two-col {
-    page-break-inside: avoid;
+  page-break-inside: avoid;
 }
 ```
 
@@ -37,8 +37,10 @@ table {
 
 ```css
 /* Headers should never appear at bottom of page without content */
-h2, h3, h4 {
-    page-break-after: avoid;
+h2,
+h3,
+h4 {
+  page-break-after: avoid;
 }
 ```
 
@@ -46,8 +48,8 @@ h2, h3, h4 {
 
 ```css
 p {
-    orphans: 3;  /* Minimum lines at bottom of page */
-    widows: 3;   /* Minimum lines at top of page */
+  orphans: 3; /* Minimum lines at bottom of page */
+  widows: 3; /* Minimum lines at top of page */
 }
 ```
 
@@ -59,26 +61,28 @@ p {
 
 ```css
 @page {
-    size: A4;
-    margin: 25mm 20mm 25mm 20mm;
+  size: A4;
+  margin: 25mm 20mm 25mm 20mm;
 
-    @top-center {
-        content: "Report Title";
-        font-family: Georgia, serif;
-        font-size: 9pt;
-        color: #666666;
-    }
+  @top-center {
+    content: "Report Title";
+    font-family: Georgia, serif;
+    font-size: 9pt;
+    color: #666666;
+  }
 
-    @bottom-center {
-        content: counter(page);
-        font-family: Georgia, serif;
-        font-size: 10pt;
-    }
+  @bottom-center {
+    content: counter(page);
+    font-family: Georgia, serif;
+    font-size: 10pt;
+  }
 }
 
 /* Suppress header on first page */
 @page :first {
-    @top-center { content: none; }
+  @top-center {
+    content: none;
+  }
 }
 ```
 
@@ -96,26 +100,26 @@ p {
 
 ```css
 table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 12pt 0;
-    font-size: 9pt;
-    page-break-inside: avoid;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9pt;
+  page-break-inside: avoid;
 }
 
 th {
-    background: #1a1a1a;
-    color: white;
-    padding: 8pt 10pt;
-    text-align: left;
-    font-size: 8pt;
-    text-transform: uppercase;
+  background: #1a1a1a;
+  color: white;
+  padding: 8pt 10pt;
+  text-align: left;
+  font-size: 8pt;
+  text-transform: uppercase;
 }
 
 td {
-    padding: 8pt 10pt;
-    border-bottom: 0.5pt solid #d0d0d0;
-    vertical-align: top;
+  padding: 8pt 10pt;
+  border-bottom: 0.5pt solid #d0d0d0;
+  vertical-align: top;
 }
 ```
 
@@ -129,19 +133,31 @@ Use points for print, not pixels:
 
 ```css
 body {
-    font-family: Georgia, "Times New Roman", Times, serif;
-    font-size: 10pt;
-    line-height: 1.6;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 10pt;
+  line-height: 1.6;
 }
 
-h1 { font-size: 22pt; }
-h2 { font-size: 14pt; }
-h3 { font-size: 11pt; }
+h1 {
+  font-size: 22pt;
+}
+h2 {
+  font-size: 14pt;
+}
+h3 {
+  font-size: 11pt;
+}
 
 /* Small text */
-.citation { font-size: 8pt; }
-.footer { font-size: 8pt; }
-.bib-entry { font-size: 8pt; }
+.citation {
+  font-size: 8pt;
+}
+.footer {
+  font-size: 8pt;
+}
+.bib-entry {
+  font-size: 8pt;
+}
 ```
 
 ### Line Height
@@ -160,20 +176,20 @@ Flexbox and Grid have limited WeasyPrint support. Use `display: table`:
 
 ```css
 .two-col {
-    display: table;
-    width: 100%;
-    page-break-inside: avoid;
+  display: table;
+  width: 100%;
+  page-break-inside: avoid;
 }
 
 .col {
-    display: table-cell;
-    width: 50%;
-    padding: 10pt;
-    vertical-align: top;
+  display: table-cell;
+  width: 50%;
+  padding: 10pt;
+  vertical-align: top;
 }
 
 .col:first-child {
-    border-right: 0.5pt solid #cccccc;
+  border-right: 0.5pt solid #cccccc;
 }
 ```
 
@@ -181,17 +197,17 @@ Flexbox and Grid have limited WeasyPrint support. Use `display: table`:
 
 ```css
 .metrics-row {
-    display: table;
-    width: 100%;
-    border: 1.5pt solid #000000;
-    page-break-inside: avoid;
+  display: table;
+  width: 100%;
+  border: 1.5pt solid #000000;
+  page-break-inside: avoid;
 }
 
 .metric {
-    display: table-cell;
-    width: 25%;
-    padding: 12pt 8pt;
-    text-align: center;
+  display: table-cell;
+  width: 25%;
+  padding: 12pt 8pt;
+  text-align: center;
 }
 ```
 
@@ -203,19 +219,19 @@ Flexbox and Grid have limited WeasyPrint support. Use `display: table`:
 
 ```css
 .key-insight {
-    background: #f5f5f5;
-    border-left: 3pt solid #000000;
-    padding: 10pt 12pt;
-    margin: 12pt 0;
-    page-break-inside: avoid;
+  background: #f5f5f5;
+  border-left: 3pt solid #000000;
+  padding: 10pt 12pt;
+  margin: 12pt 0;
+  page-break-inside: avoid;
 }
 
 .warning-box {
-    background: #1a1a1a;
-    color: white;
-    padding: 12pt 15pt;
-    margin: 12pt 0;
-    page-break-inside: avoid;
+  background: #1a1a1a;
+  color: white;
+  padding: 12pt 15pt;
+  margin: 12pt 0;
+  page-break-inside: avoid;
 }
 ```
 
@@ -223,12 +239,12 @@ Flexbox and Grid have limited WeasyPrint support. Use `display: table`:
 
 ```css
 .diagram {
-    background: #f5f5f5;
-    border: 1pt solid #000000;
-    padding: 12pt;
-    margin: 12pt 0;
-    text-align: center;
-    page-break-inside: avoid;
+  background: #f5f5f5;
+  border: 1pt solid #000000;
+  padding: 12pt;
+  margin: 12pt 0;
+  text-align: center;
+  page-break-inside: avoid;
 }
 ```
 
@@ -238,19 +254,19 @@ Flexbox and Grid have limited WeasyPrint support. Use `display: table`:
 
 ```css
 .bibliography {
-    background: #f5f5f5;
-    padding: 15pt;
-    margin-top: 20pt;
-    border-top: 2pt solid #000000;
+  background: #f5f5f5;
+  padding: 15pt;
+  margin-top: 20pt;
+  border-top: 2pt solid #000000;
 }
 
 .bib-entry {
-    margin-bottom: 8pt;
-    padding-left: 25pt;
-    text-indent: -25pt;
-    font-size: 8pt;
-    line-height: 1.5;
-    page-break-inside: avoid;
+  margin-bottom: 8pt;
+  padding-left: 25pt;
+  text-indent: -25pt;
+  font-size: 8pt;
+  line-height: 1.5;
+  page-break-inside: avoid;
 }
 ```
 
@@ -319,6 +335,7 @@ weasyprint input.html output.pdf
 ```
 
 Options:
+
 - `--presentational-hints` - Respect HTML presentational hints
 - `-s stylesheet.css` - Apply external stylesheet
 - `--pdf-variant pdf/ua-1` - Generate accessible PDF

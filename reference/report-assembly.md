@@ -2,11 +2,11 @@
 
 ## Length Requirements by Mode
 
-| Mode | Target Words | Description |
-|------|--------------|-------------|
-| Quick | 2,000-4,000 | Baseline quality threshold |
-| Standard | 4,000-8,000 | Comprehensive analysis |
-| Deep | 8,000-15,000 | Thorough investigation |
+| Mode      | Target Words   | Description                     |
+| --------- | -------------- | ------------------------------- |
+| Quick     | 2,000-4,000    | Baseline quality threshold      |
+| Standard  | 4,000-8,000    | Comprehensive analysis          |
+| Deep      | 8,000-15,000   | Thorough investigation          |
 | UltraDeep | 15,000-20,000+ | Maximum rigor (at output limit) |
 
 ---
@@ -16,6 +16,7 @@
 **Claude Code default limit:** 32,000 output tokens (~24,000 words total per execution)
 
 **Practical limits:**
+
 - Target <=20,000 words total output
 - Leave safety margin for tool call overhead
 - Reports >20,000 words require auto-continuation (see continuation.md)
@@ -42,6 +43,7 @@ mkdir -p ~/Documents/[folder_name]
 Each Write/Edit call contains ONE section (<=2,000 words per call)
 
 **Initialize research run (persist to disk):**
+
 ```bash
 # Create run manifest and artifact files using citation_manager CLI
 python scripts/citation_manager.py init-run --out-dir [folder] --query "[question]" --mode [mode]
@@ -49,6 +51,7 @@ python scripts/citation_manager.py init-run --out-dir [folder] --query "[questio
 ```
 
 **Register each source as you encounter it:**
+
 ```bash
 python scripts/citation_manager.py register-source \
   --json '{"raw_url": "...", "title": "...", "source_type": "academic", "year": "2024"}' \
@@ -57,6 +60,7 @@ python scripts/citation_manager.py register-source \
 ```
 
 **Assign display numbers after all sources registered:**
+
 ```bash
 python scripts/citation_manager.py assign-display-numbers --dir [folder]
 # Maps stable source_ids to [1], [2], [3]... for rendering
@@ -107,11 +111,13 @@ Source identity is stable across edits and continuation. Display numbers are der
 ## File Organization
 
 **1. Create dedicated folder:**
+
 - Location: `~/Documents/[TopicName]_Research_[YYYYMMDD]/`
 - Clean topic name (remove special chars, use underscores)
 
 **2. File naming convention:**
 All files use same base name:
+
 - `research_report_20251104_topic_slug.md`
 - `research_report_20251104_topic_slug.html`
 - `research_report_20251104_topic_slug.pdf`
@@ -125,6 +131,7 @@ All files use same base name:
 **CRITICAL:** No single Edit call should exceed 2,000 words.
 
 Example: 10 findings x 1,500 words = 15,000 words total
+
 - Each Edit call: 1,500 words (under limit)
 - File grows to 15,000 words
 - No single tool call exceeds limits

@@ -44,10 +44,7 @@ Trigger auto-continuation when report exceeds 18,000 words in single run.
   "research_context": {
     "research_question": "[original question]",
     "key_themes": ["theme1", "theme2"],
-    "main_findings_summary": [
-      "Finding 1: [100-word summary]",
-      "Finding 2: [100-word summary]"
-    ],
+    "main_findings_summary": ["Finding 1: [100-word summary]", "Finding 2: [100-word summary]"],
     "narrative_arc": "middle"
   },
 
@@ -59,8 +56,8 @@ Trigger auto-continuation when report exceeds 18,000 words in single run.
   },
 
   "next_sections": [
-    {"id": 11, "type": "finding", "title": "Finding X", "target_words": 1500},
-    {"id": 12, "type": "synthesis", "title": "Synthesis", "target_words": 1000}
+    { "id": 11, "type": "finding", "title": "Finding X", "target_words": 1500 },
+    { "id": 12, "type": "synthesis", "title": "Synthesis", "target_words": 1000 }
   ]
 }
 ```
@@ -142,6 +139,7 @@ After generating:
 ### Handoff Decision
 
 Calculate: Current words + remaining sections x avg_words_per_section
+
 - If total < 18K: Generate all + finish
 - If total > 18K: Generate partial, update state, spawn next agent
 
@@ -159,6 +157,7 @@ Calculate: Current words + remaining sections x avg_words_per_section
 ## User Communication
 
 After spawning continuation:
+
 ```
 Report Generation: Part 1 Complete (N sections, X words)
 Auto-continuing via spawned agent...
