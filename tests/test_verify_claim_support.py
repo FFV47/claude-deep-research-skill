@@ -381,6 +381,26 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
 
+    def test_pt_contraction_no_does_not_cancel_negation_after_sentence_initial_name_next_to_en_lookalike_words(self):
+        for affirmed, negated in (
+            ('O Globo publicou on-line no sábado.', 'O Globo não publicou on-line no sábado.'),
+            ('O Globo apurou in loco no sábado.', 'O Globo não apurou in loco no sábado.'),
+            ('O Globo publicou a renda per capita no sábado.',
+             'O Globo não publicou a renda per capita no sábado.'),
+            ('O Globo abriu loja no The Mall.', 'O Globo não abriu loja no The Mall.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
+    def test_en_no_still_negates_next_to_accented_loanword_and_en_marker_lookalike(self):
+        for affirmed, negated in (
+            ('Shoppers found açaí bowls near The Mall.', 'Shoppers found no açaí bowls near The Mall.'),
+            ('Shoppers bought açaí bowls on-line.', 'Shoppers bought no açaí bowls on-line.'),
+            ('Brazil saw açaí sales grow per capita.', 'Brazil saw no açaí sales grow per capita.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
     def test_pt_contraction_no_does_not_cancel_negation_next_to_en_lookalike_words(self):
         for affirmed, negated in (
             ('O evento será on-line no sábado.', 'O evento não será on-line no sábado.'),
@@ -402,6 +422,12 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
     def test_pt_contraction_no_is_not_negation(self):
         _, _, notes = self.score(
             'O museu fica perto do centro da cidade.', ['O museu fica no centro da cidade.'])
+        self.assertNotIn('negation mismatch', notes)
+
+    def test_pt_contraction_no_is_not_negation_after_sentence_initial_name_next_to_en_lookalike_words(self):
+        _, _, notes = self.score(
+            'O Globo publicou a reportagem on-line perto do estádio.',
+            ['O Globo publicou a reportagem on-line no estádio.'])
         self.assertNotIn('negation mismatch', notes)
 
     def test_pt_contraction_no_is_not_negation_without_marker_word(self):

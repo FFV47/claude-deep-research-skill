@@ -122,6 +122,13 @@ PT_CONTRACTIONS = frozenset(_lexicon_words('pt_contractions'))
 EN_MARKERS = frozenset(_lexicon_words('en_markers'))
 PT_LETTERS = frozenset(_lexicon_words('pt_letters'))
 
+# Portuguese phrases that contain an English marker word ("on-line"),
+# matched as whole words in any case. Longer phrases are tried first.
+EN_MARKER_EXCEPTION_RE = re.compile('|'.join(
+    rf'\b{re.escape(e)}\b'
+    for e in sorted(_lexicon_words('en_marker_exceptions'), key=len, reverse=True)
+), re.IGNORECASE)
+
 # Exceptions match as whole words, except Han compounds, which have no
 # word boundaries. Longer phrases are tried first.
 NEGATION_EXCEPTION_RE = re.compile('|'.join(
@@ -173,6 +180,32 @@ def has_en_marker_word(text: str) -> bool:
     return any(w.lower() in EN_MARKERS for w in WORD_RE.findall(text))
 
 
+def has_standalone_en_marker_word(text: str) -> bool:
+    """Return True if the text contains an English marker word outside the
+    Portuguese phrases that contain one ("on-line"), in lowercase or at the
+    start of a sentence ("The café"). Elsewhere a capitalized or all-caps
+    word is a name or an acronym in any language ("The Mall").
+
+    This looser check applies only to a text that opens a sentence with a
+    Portuguese marker word ("O Globo"), its second Portuguese signal. In
+    other text, "Shoppers bought no açaí bowls on-line." stays English."""
+    text = EN_MARKER_EXCEPTION_RE.sub(' ', unicodedata.normalize('NFC', text))
+    return any(
+        match.group().lower() in EN_MARKERS
+        and (match.group().islower() or SENTENCE_START_RE.search(text[:match.start()]))
+        for match in WORD_RE.finditer(text))
+
+
+def starts_sentence_with_pt_marker(text: str) -> bool:
+    """Return True if a capitalized Portuguese marker word opens a sentence
+    of the text ("O museu", "O Globo")."""
+    text = unicodedata.normalize('NFC', text).replace('’', "'")
+    return any(
+        match.group().istitle() and match.group().lower() in PT_MARKERS
+        and SENTENCE_START_RE.search(text[:match.start()])
+        for match in PT_MARKER_WORD_RE.finditer(text))
+
+
 def is_portuguese(text: str, other: str = '') -> bool:
     """Return True if the text contains a Portuguese marker word that
     counts, given other, the text it is compared with.
@@ -183,7 +216,8 @@ def is_portuguese(text: str, other: str = '') -> bool:
 
     At the start of a sentence, a marker followed by a capitalized word
     may open a name ("Uma Thurman", "O Globo"). It counts only if the text
-    has no English marker word and other reads as Portuguese on its own.
+    has no standalone English marker word and other reads as Portuguese on
+    its own.
     So "O Brasil fica no centro" reads as Portuguese against "O Brasil
     não fica no centro", and "Uma Thurman won no Oscar" reads as English
     against "Uma Thurman won Oscar"."""
@@ -197,7 +231,7 @@ def is_portuguese(text: str, other: str = '') -> bool:
         if word.istitle() and SENTENCE_START_RE.search(text[:match.start()]):
             next_word = PT_MARKER_WORD_RE.search(text, match.end())
             opens_name = next_word is not None and next_word.group()[0].isupper()
-            if not opens_name or (not has_en_marker_word(text) and is_portuguese(other)):
+            if not opens_name or (not has_standalone_en_marker_word(text) and is_portuguese(other)):
                 return True
     return False
 
@@ -205,14 +239,17 @@ def is_portuguese(text: str, other: str = '') -> bool:
 def has_pt_letter_word(clause: str, text: str) -> bool:
     """Return True if the clause has a lowercase word with a Portuguese
     letter ("histórico") and the text it comes from has no English marker
-    word, in any case.
+    word, in any case. If the text opens a sentence with a Portuguese
+    marker word ("O Globo"), only a standalone English marker word counts.
 
     This reads a text without a Portuguese marker word as Portuguese. The
     word must sit in the clause itself, so a Portuguese note in another
     clause ("Sales showed no growth (relatório anual).") leaves the
     English "no" negating. Capitalized words do not count, since names
     keep their accents in any language ("São Paulo")."""
-    if has_en_marker_word(text):
+    en_marker_check = (has_standalone_en_marker_word if starts_sentence_with_pt_marker(text)
+                       else has_en_marker_word)
+    if en_marker_check(text):
         return False
     return any(w.islower() and PT_LETTERS & set(w)
                for w in WORD_RE.findall(unicodedata.normalize('NFC', clause)))
