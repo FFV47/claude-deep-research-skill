@@ -349,6 +349,7 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             ('Our café showed losses.', 'Our café showed no losses.'),
             ('Clients reported déjà vu effects.', 'Clients reported no déjà vu effects.'),
             ('Sales showed growth per résumé data.', 'Sales showed no growth per résumé data.'),
+            ('The trainer used a longe.', 'The trainer used no longe.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
@@ -452,6 +453,15 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             'A vistoria in loco fica perto do centro histórico.',
             ['A vistoria in loco fica no centro histórico.'])
         self.assertNotIn('negation mismatch', notes)
+
+    def test_pt_contraction_no_is_not_negation_after_sentence_initial_name_without_other_marker(self):
+        for with_no, without_no in (
+            ('O Brasil venceu no Maracanã.', 'O Brasil venceu perto do Maracanã.'),
+            ('O Globo publicou no Natal.', 'O Globo publicou perto do Natal.'),
+        ):
+            for claim, quote in ((with_no, without_no), (without_no, with_no)):
+                _, _, notes = self.score(claim, [quote])
+                self.assertNotIn('negation mismatch', notes)
 
     def test_zh_more_negation_chars_both_ways(self):
         for affirmed, negated in (
