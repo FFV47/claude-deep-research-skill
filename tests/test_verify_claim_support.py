@@ -350,6 +350,7 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             ('Clients reported déjà vu effects.', 'Clients reported no déjà vu effects.'),
             ('Sales showed growth per résumé data.', 'Sales showed no growth per résumé data.'),
             ('The trainer used a longe.', 'The trainer used no longe.'),
+            ('The museum has a da Vinci.', 'The museum has no da Vinci.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
@@ -368,6 +369,16 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
         for affirmed, negated in (
             ('Uma Thurman won Oscar.', 'Uma Thurman won no Oscar.'),
             ('O Globo cited sources.', 'O Globo cited no sources.'),
+            ('Uma Thurman owns a da Vinci.', 'Uma Thurman owns no da Vinci.'),
+            ('O Globo found da Vinci sketches.', 'O Globo found no da Vinci sketches.'),
+            ('O Globo reporters do fact checks.', 'O Globo reporters do no fact checks.'),
+            ('O Globo saw change de jure.', 'O Globo saw no change de jure.'),
+            ('Uma Thurman films do business de facto.', 'Uma Thurman films do no business.'),
+            ('O Globo cited da Vinci letters.', 'O Globo cited no letters.'),
+            ('O Globo saw de facto and de jure change.', 'O Globo saw no change.'),
+            ('Uma Thurman owns da Vinci, de Kooning pieces.', 'Uma Thurman owns no da Vinci.'),
+            ('O Globo cited da Vinci, de Gaulle letters.', 'O Globo cited no letters.'),
+            ('O Globo saw de facto change.', 'O Globo saw no change.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
@@ -458,6 +469,15 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
         for with_no, without_no in (
             ('O Brasil venceu no Maracanã.', 'O Brasil venceu perto do Maracanã.'),
             ('O Globo publicou no Natal.', 'O Globo publicou perto do Natal.'),
+        ):
+            for claim, quote in ((with_no, without_no), (without_no, with_no)):
+                _, _, notes = self.score(claim, [quote])
+                self.assertNotIn('negation mismatch', notes)
+
+    def test_pt_contraction_no_is_not_negation_after_sentence_initial_name_against_na_or_do(self):
+        for with_no, without_no in (
+            ('O Globo publicou no Natal.', 'O Globo publicou na véspera do Natal.'),
+            ('O Brasil jogou no Maracanã.', 'O Brasil jogou na final do Maracanã.'),
         ):
             for claim, quote in ((with_no, without_no), (without_no, with_no)):
                 _, _, notes = self.score(claim, [quote])

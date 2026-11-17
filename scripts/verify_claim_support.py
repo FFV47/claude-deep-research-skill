@@ -117,6 +117,10 @@ CJK_NEGATIONS = frozenset(_lexicon_words('negation_chars'))
 PT_MARKERS = frozenset(_lexicon_words('pt_markers'))
 PT_CONTRACTIONS = frozenset(_lexicon_words('pt_contractions'))
 
+# Words found in Portuguese and in English ("da Vinci", "do not"), which
+# count only in a text that swaps "no" for one of them
+PT_WEAK_MARKERS = frozenset(_lexicon_words('pt_weak_markers'))
+
 # Words that mark a text as English, and letters that mark a word as
 # Portuguese, for texts without a Portuguese marker word
 EN_MARKERS = frozenset(_lexicon_words('en_markers'))
@@ -218,11 +222,12 @@ def is_portuguese(text: str, other: str = '') -> bool:
 
     At the start of a sentence, a marker followed by a capitalized word
     may open a name ("Uma Thurman", "O Globo"). It counts only if the text
-    has no standalone English marker word and other reads as Portuguese on
-    its own.
+    has no standalone English marker word, and other reads as Portuguese
+    on its own or swaps "no" for weak Portuguese marker words.
     So "O Brasil fica no centro" reads as Portuguese against "O Brasil
-    não fica no centro", and "Uma Thurman won no Oscar" reads as English
-    against "Uma Thurman won Oscar"."""
+    não fica no centro". "O Globo publicou no Natal" reads as Portuguese
+    against "O Globo publicou na véspera do Natal". "Uma Thurman won no
+    Oscar" reads as English against "Uma Thurman won Oscar"."""
     text = unicodedata.normalize('NFC', text).replace('’', "'")
     for match in PT_MARKER_WORD_RE.finditer(text):
         word = match.group()
@@ -233,9 +238,32 @@ def is_portuguese(text: str, other: str = '') -> bool:
         if word.istitle() and SENTENCE_START_RE.search(text[:match.start()]):
             next_word = PT_MARKER_WORD_RE.search(text, match.end())
             opens_name = next_word is not None and next_word.group()[0].isupper()
-            if not opens_name or (not has_standalone_en_marker_word(text) and is_portuguese(other)):
+            if not opens_name or (not has_standalone_en_marker_word(text)
+                                  and (is_portuguese(other) or swaps_no_for_pt_weak_marker(text, other))):
                 return True
     return False
+
+
+def swaps_no_for_pt_weak_marker(text: str, other: str) -> bool:
+    """Return True if other has a weak Portuguese marker word ("na", "do")
+    where the text has the contraction "no", after the same word and
+    before a lowercase word. Other must also have at least two weak marker
+    words in lowercase and no English marker word in any case.
+
+    These words also appear in English, before a name ("da Vinci") or in
+    a set phrase ("do not", "de facto"), so one of them alone does not
+    make other Portuguese. "O Globo publicou na véspera do Natal" swaps
+    "no" in "O Globo publicou no Natal"; "O Globo cited da Vinci, de
+    Gaulle letters" does not, against "O Globo cited no letters"."""
+    if has_en_marker_word(other):
+        return False
+    words = WORD_RE.findall(unicodedata.normalize('NFC', text))
+    other_words = WORD_RE.findall(unicodedata.normalize('NFC', other))
+    if sum(w in PT_WEAK_MARKERS for w in other_words) < 2:
+        return False
+    before_no = {prev for prev, w in zip(words, words[1:]) if w in PT_CONTRACTIONS}
+    return any(prev in before_no and w in PT_WEAK_MARKERS and following.islower()
+               for prev, w, following in zip(other_words, other_words[1:], other_words[2:]))
 
 
 def has_pt_letter_word(clause: str, text: str, other: str) -> bool:
