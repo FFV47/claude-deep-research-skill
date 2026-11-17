@@ -186,9 +186,11 @@ def has_standalone_en_marker_word(text: str) -> bool:
     start of a sentence ("The café"). Elsewhere a capitalized or all-caps
     word is a name or an acronym in any language ("The Mall").
 
-    This looser check applies only to a text that opens a sentence with a
-    Portuguese marker word ("O Globo"), its second Portuguese signal. In
-    other text, "Shoppers bought no açaí bowls on-line." stays English."""
+    This looser check applies only to a text with a second Portuguese
+    signal: it opens a sentence with a Portuguese marker word ("O Globo"),
+    or, in the accented-letter rule, the text it is compared with reads as
+    Portuguese on its own. In other text, "Shoppers bought no açaí bowls
+    on-line." stays English."""
     text = EN_MARKER_EXCEPTION_RE.sub(' ', unicodedata.normalize('NFC', text))
     return any(
         match.group().lower() in EN_MARKERS
@@ -236,19 +238,23 @@ def is_portuguese(text: str, other: str = '') -> bool:
     return False
 
 
-def has_pt_letter_word(clause: str, text: str) -> bool:
+def has_pt_letter_word(clause: str, text: str, other: str) -> bool:
     """Return True if the clause has a lowercase word with a Portuguese
     letter ("histórico") and the text it comes from has no English marker
     word, in any case. If the text opens a sentence with a Portuguese
-    marker word ("O Globo"), only a standalone English marker word counts.
+    marker word ("O Globo"), or other, the text it is compared with, reads
+    as Portuguese on its own ("A loja não vende on-line."),
+    only a standalone English marker word counts.
 
     This reads a text without a Portuguese marker word as Portuguese. The
     word must sit in the clause itself, so a Portuguese note in another
     clause ("Sales showed no growth (relatório anual).") leaves the
     English "no" negating. Capitalized words do not count, since names
     keep their accents in any language ("São Paulo")."""
-    en_marker_check = (has_standalone_en_marker_word if starts_sentence_with_pt_marker(text)
-                       else has_en_marker_word)
+    en_marker_check = (
+        has_standalone_en_marker_word
+        if starts_sentence_with_pt_marker(text) or is_portuguese(other)
+        else has_en_marker_word)
     if en_marker_check(text):
         return False
     return any(w.islower() and PT_LETTERS & set(w)
@@ -434,10 +440,10 @@ def negation_mismatch(claim_text: str, quote: str) -> bool:
     quote_clauses = relevant_clauses(quote, claim_text, text_is_claim=False)
     claim_pt, quote_pt = is_portuguese(claim_text, quote), is_portuguese(quote, claim_text)
     claim_negated = any(
-        has_negation(c, portuguese=claim_pt or has_pt_letter_word(c, claim_text))
+        has_negation(c, portuguese=claim_pt or has_pt_letter_word(c, claim_text, quote))
         for c in claim_clauses)
     quote_negated = any(
-        has_negation(c, portuguese=quote_pt or has_pt_letter_word(c, quote))
+        has_negation(c, portuguese=quote_pt or has_pt_letter_word(c, quote, claim_text))
         for c in quote_clauses)
     if not (claim_negated or quote_negated):
         return False

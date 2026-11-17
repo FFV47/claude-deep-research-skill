@@ -397,6 +397,8 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             ('Shoppers found açaí bowls near The Mall.', 'Shoppers found no açaí bowls near The Mall.'),
             ('Shoppers bought açaí bowls on-line.', 'Shoppers bought no açaí bowls on-line.'),
             ('Brazil saw açaí sales grow per capita.', 'Brazil saw no açaí sales grow per capita.'),
+            ('Shoppers bought guaraná sodas on-line.', 'Shoppers bought no guaraná sodas on-line.'),
+            ('Brazil saw guaraná sales grow per capita.', 'Brazil saw no guaraná sales grow per capita.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
@@ -407,6 +409,16 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
             ('O fiscal faz a vistoria in loco no sábado.',
              'O fiscal não faz a vistoria in loco no sábado.'),
             ('O museu fica no centro do The Mall.', 'O museu não fica no centro do The Mall.'),
+        ):
+            self.assertNegationMismatch(affirmed, negated)
+            self.assertNegationMismatch(negated, affirmed)
+
+    def test_pt_contraction_no_does_not_cancel_negation_without_marker_word_next_to_en_lookalike_words(self):
+        for affirmed, negated in (
+            ('A equipe faz a vistoria in loco no sábado.',
+             'A equipe não faz a vistoria in loco no sábado.'),
+            ('A loja vende on-line no sábado.', 'A loja não vende on-line no sábado.'),
+            ('A renda per capita subiu no período.', 'A renda per capita não subiu no período.'),
         ):
             self.assertNegationMismatch(affirmed, negated)
             self.assertNegationMismatch(negated, affirmed)
@@ -433,6 +445,12 @@ class TestContradictingAndUnrelatedEvidence(unittest.TestCase):
     def test_pt_contraction_no_is_not_negation_without_marker_word(self):
         _, _, notes = self.score(
             'Fica perto do centro histórico.', ['Fica no centro histórico.'])
+        self.assertNotIn('negation mismatch', notes)
+
+    def test_pt_contraction_no_is_not_negation_without_marker_word_next_to_en_lookalike_words(self):
+        _, _, notes = self.score(
+            'A vistoria in loco fica perto do centro histórico.',
+            ['A vistoria in loco fica no centro histórico.'])
         self.assertNotIn('negation mismatch', notes)
 
     def test_zh_more_negation_chars_both_ways(self):
